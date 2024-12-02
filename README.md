@@ -73,7 +73,7 @@ This framework was heavily influenced by the following:
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/principles.git
+   git clone https://github.com/miltonian/principles.git
    cd principles
    ```
 
