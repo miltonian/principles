@@ -11,7 +11,7 @@ Principles is a powerful and flexible framework that enables you to generate spe
 This framework was heavily influenced by the following:
 
 - [OpenAI Swarm](https://github.com/openai/swarm)
-- [AI Thinking: How to Design Agents That Think Like Humans](https://medium.com/p/77fd7707bdf5)
+- [Breaking Down Complexity: A Journey into Multi-Agent Systems and the Future of Collaborative AI](https://medium.com/p/77fd7707bdf5)
 
 ## Table of Contents
 
