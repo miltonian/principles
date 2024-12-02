@@ -1,0 +1,21 @@
+{
+  "name": "multi-agent-generator",
+  "version": "1.0.0",
+  "main": "dist/scripts/agentGenerator.js",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "jsonrepair": "^3.10.0",
+    "openai": "^4.70.2"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^4.0.0",
+    "@types/fs-extra": "^11.0.4"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "generate-agents": "yarn build && node dist/scripts/agentGenerator.js"
+  }
+}

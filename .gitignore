@@ -1,0 +1,10 @@
+.env
+node_modules
+
+generated-agents
+
+dist
+agents 
+ignore
+packages
+.DS_Store
