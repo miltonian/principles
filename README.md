@@ -1,3 +1,5 @@
+<img src="logo.svg" height="200" alt="Principles Framework Logo">
+
 # Principles Framework
 
 Principles is a powerful and flexible framework that enables you to generate specialized AI agents based on a **singular goal** or problem statement. By applying **first principles thinking**, Principles breaks down your goal into its most fundamental truths or components—the smallest, indivisible parts of the problem. It then generates a network of collaborating agents that address each fundamental component. This approach allows you to create highly effective AI solutions tailored to your specific needs, enabling you to process subsequent prompts with greater accuracy and efficiency than general-purpose language models.
