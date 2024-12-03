@@ -54,29 +54,44 @@ This framework was heavily influenced by the following:
 The methodologies underpinning the **Principles Framework** are strongly validated by research studies demonstrating the effectiveness of decomposition-based frameworks. Key findings from these studies provide evidence for the power and utility of the Principles approach:
 
 ### 1. Dynamic Task Decomposition
-The Principles Framework’s focus on breaking down complex goals into their most fundamental components aligns with results from the **TDAG (Task Decomposition and Agent Generation)** framework:
+
+The Principles Framework's focus on breaking down complex goals into their most fundamental components aligns with results from the **TDAG (Dynamic Task Decomposition and Agent Generation)** framework:
 
 - **TDAG Results**:
-  - Up to **33% improvement in success rates** on compositional reasoning tasks.
+  - Achieved up to **33% improvement** in success rates on compositional reasoning tasks.
   - **28.3% increase** in task completion rates in dynamic environments (ALFWorld benchmark).
   - **27% performance boost** on interactive tasks (WebShop benchmark).
+- **Key Advantages**:
+  - **Dynamic Adaptability**: TDAG dynamically decomposes tasks and generates custom subagents, enhancing adaptability in complex, real-world tasks.
+  - **Error Reduction**: Significant reduction in error rates, particularly in cascading task failures, due to dynamic adjustments and specialized subagents.
 
-These results demonstrate the value of modular decomposition, a cornerstone of the Principles Framework.
+These results demonstrate the value of modular decomposition and dynamic agent generation, which are cornerstones of the Principles Framework.
 
-[Reference](https://arxiv.org/abs/2402.10178?utm_source=chatgpt.com)
+[Reference: TDAG Framework and ItineraryBench](https://arxiv.org/abs/2402.10178)
 
 ### 2. Iterative Problem-Solving and Adaptability
+
 The iterative and adaptive nature of the Principles Framework is reinforced by studies on modular problem-solving systems:
 
-- **TaskBench**:
-  - Modular task decomposition systems achieved **25%-35% better performance** than monolithic models on complex reasoning benchmarks.
-  - [Reference](https://arxiv.org/abs/2311.18760?utm_source=chatgpt.com)
+- **Dynamic Role Discovery and Assignment (DRDA)**:
+  - Improved task allocation efficiency by **20%-30%** using dynamic role assignment in multi-agent systems.
+  - **Performance Gains**: Achieved higher win rates in complex scenarios, demonstrating the effectiveness of dynamic role policies and restricted action spaces.
+  - **Key Insights**:
+    - Dynamic role assignment allows agents to adapt to changing environments and tasks.
+    - Role-specific policies enhance learning efficiency by reducing action space complexity.
 
-- **Dynamic Role Discovery in Multi-Agent Systems**:
-  - Improved task allocation efficiency by **20%-30%** using dynamic role assignment, validating the Principles approach of specialized agent generation.
-  - [Reference](https://link.springer.com/content/pdf/10.1007/s40747-023-01071-x.pdf?utm_source=chatgpt.com)
+[Reference: Dynamic Role Discovery and Assignment](https://link.springer.com/content/pdf/10.1007/s40747-023-01071-x.pdf)
 
+- **TASKBENCH**:
+  - Provided insights into LLM limitations and strengths in task automation.
+  - Showed that advanced models like GPT-4 excel in reasoning and parameter prediction, especially in complex tasks requiring tool dependencies.
+  - **Performance Trends**:
+    - Advanced models demonstrated **higher performance** in tasks requiring dynamic reasoning and alignment.
+    - Emphasized the importance of **code pretraining**, **human alignment techniques**, and **instruction fine-tuning** in enhancing task automation capabilities.
 
+[Reference: TASKBENCH](https://arxiv.org/abs/2311.18760)
+
+These studies highlight the effectiveness of dynamic decomposition and iterative problem-solving, which are central to the Principles Framework.
 
 ## How It Works
 
