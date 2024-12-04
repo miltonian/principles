@@ -453,7 +453,11 @@ While the Principles Framework offers robust features, it is important to acknow
 
 - **Performance Optimization**: Improve execution speed and efficiency.
 
-- **GUI Interface**: Develop a graphical user interface for easier interaction.
+- **Improved Task Decomposition**: I believe there is a lot of room for improvement here using reasoning with first principles as well as tools for research and RAG implementations to improve the planning of each individual agent.
+
+- **More Tools**: More tools such as api and RAG implementations
+
+- **Nested Agent Generation**: Make it easier to generate agents that fit inside other agents for more complex processing 
 
 - **Community Contributions**: Encourage open-source contributions to expand functionality.
 
