@@ -2,7 +2,7 @@
 
 # Principles Framework
 
-Principles is a powerful and flexible framework that enables you to generate specialized AI agents based on a **singular goal** or problem statement. By applying **first principles thinking**, Principles breaks down your goal into its most fundamental truths or components—the smallest, indivisible parts of the problem. It then generates a network of collaborating agents that address each fundamental component. This approach allows you to create highly effective AI solutions tailored to your specific needs, enabling you to process subsequent prompts with greater accuracy and efficiency than general-purpose language models.
+Principles is a powerful and flexible framework that enables you to generate specialized AI agents based on a goal or problem statement. By applying **first principles thinking**, Principles breaks down your goal into its most fundamental truths or components—the smallest, indivisible parts of the problem. It then generates a network of collaborating agents that address each fundamental component. This approach allows you to create highly effective AI solutions tailored to your specific needs, enabling you to process subsequent prompts with greater accuracy and efficiency than general-purpose language models.
 
 **Note:** This framework was designed as an experiment, and the code may require refining in some places.
 
@@ -31,7 +31,7 @@ This framework was heavily influenced by the following:
     - [Generating Agents](#generating-agents)
     - [Running the Agents](#running-the-agents)
   - [(Highly Simplified) Example Workflow](#highly-simplified-example-workflow)
-    - [Step 1: Generate Agents Based on a Singular Goal](#step-1-generate-agents-based-on-a-singular-goal)
+    - [Step 1: Generate Agents Based on a Goal or Problem Statement](#step-1-generate-agents-based-on-a-goal-or-problem-statement)
     - [Step 2: Use the Agents to Process Prompts](#step-2-use-the-agents-to-process-prompts)
   - [Iterative Refinement and Integration](#iterative-refinement-and-integration)
   - [Troubleshooting](#troubleshooting)
@@ -42,7 +42,7 @@ This framework was heavily influenced by the following:
 
 ## Features
 
-- **First Principles Decomposition**: Break down your singular goal into its most fundamental truths or components—the smallest, indivisible parts of the problem.
+- **First Principles Decomposition**: Break down your goal or problem statement into its most fundamental truths or components—the smallest, indivisible parts of the problem.
 - **Automated Agent Generation**: Generate specialized agents that address each fundamental component of your goal.
 - **Enhanced Performance**: Agents are tailored to your specific problem, enabling more effective processing of subsequent prompts.
 - **Modular and Extensible Design**: Build complex systems by integrating generated agents into larger workflows or nesting them within other agents.
@@ -95,7 +95,7 @@ These studies highlight the effectiveness of dynamic decomposition and iterative
 
 ## How It Works
 
-1. **Input a Singular Goal**: Provide a clear and specific goal or problem statement you wish to address.
+1. **Input a Goal or Problem Statement**: Provide a clear and specific goal or problem statement you wish to address.
 
 2. **First Principles Breakdown**: Principles applies first principles thinking to deconstruct your goal into its most fundamental truths or components—the smallest elements that cannot be reduced further.
 
@@ -152,18 +152,18 @@ These studies highlight the effectiveness of dynamic decomposition and iterative
 
 ## Getting Started
 
-Principles allows you to generate specialized AI agents by providing a **singular, well-defined goal** or problem statement. By applying first principles thinking, Principles breaks down your goal into its most basic, fundamental components—the smallest building blocks of the problem. It then generates agents that address each of these fundamental components. These agents collaborate to solve your overall goal and can process subsequent prompts more effectively than general-purpose language models.
+Principles allows you to generate specialized AI agents by providing a **well-defined goal or problem statement**. By applying first principles thinking, Principles breaks down your goal into its most basic, fundamental components—the smallest building blocks of the problem. It then generates agents that address each of these fundamental components. These agents collaborate to solve your overall goal and can process subsequent prompts more effectively than general-purpose language models.
 
 ## Usage
 
 ### Generating Agents
 
-To generate agents based on your singular goal, use the `generate-agents` script:
+To generate agents based on your goal or problem statement, use the `generate-agents` script:
 
 ```bash
-npm run generate-agents "Your singular goal or problem statement here."
+npm run generate-agents "Your goal or problem statement here."
 # or
-yarn generate-agents "Your singular goal or problem statement here."
+yarn generate-agents "Your goal or problem statement here."
 ```
 
 **Example:**
@@ -174,7 +174,7 @@ npm run generate-agents "I want to optimize my daily schedule to improve product
 
 This script will:
 
-- **Process Your Singular Goal**: Understand your specific objective.
+- **Process Your Goal or Problem Statement**: Understand your specific objective.
 - **First Principles Breakdown**: Decompose your goal into its most fundamental components.
   - **Fundamental Components**: In this example, components might include time management, task prioritization, and energy level assessment.
 - **Generate Specialized Agents**: Create agents designed to address each fundamental component.
@@ -209,7 +209,7 @@ This script will:
 
 ## (Highly Simplified) Example Workflow
 
-### Step 1: Generate Agents Based on a Singular Goal
+### Step 1: Generate Agents Based on a Goal or Problem Statement
 
 **Command:**
 
@@ -339,7 +339,7 @@ First principles thinking is a problem-solving approach that involves breaking d
 
 **Why It Matters in Principles:**
 
-- **Effective Decomposition**: By applying first principles thinking, Principles ensures that your singular goal is broken down into the smallest, most fundamental components. This leads to a more precise and effective set of agents.
+- **Effective Decomposition**: By applying first principles thinking, Principles ensures that your goal or problem statement is broken down into the smallest, most fundamental components. This leads to a more precise and effective set of agents.
 - **Customized Solutions**: Addressing the fundamental components allows for the creation of specialized agents that are finely tuned to your specific problem.
 - **Enhanced Collaboration**: Agents built from first principles can collaborate more effectively, as each one addresses a distinct aspect of the problem.
 
@@ -355,7 +355,7 @@ Instead of stating:
 
 "I want to improve my company's customer service and increase sales."
 
-Focus on a singular goal:
+Focus on a specific goal or problem statement:
 
 "I want to enhance the customer support experience by reducing response times."
 
@@ -406,15 +406,15 @@ Principles is released under the [MIT License](LICENSE).
 
 ---
 
-By following this README, you can generate specialized agents using Principles based on a **singular goal**, leveraging first principles thinking to break it down into its most fundamental truths or components. The generated agents collaborate to address each component, allowing you to process subsequent prompts with greater accuracy and efficiency.
+By following this README, you can generate specialized agents using Principles based on a **goal or problem statement**, leveraging first principles thinking to break it down into its most fundamental truths or components. The generated agents collaborate to address each component, allowing you to process subsequent prompts with greater accuracy and efficiency.
 
 **Note:** This framework was designed as an experiment, and the code may require refining in some places.
 
-**Feel free to experiment with different singular goals to generate agents that suit your application requirements. Remember, focusing on the most fundamental aspects of your problem helps Principles assist you more effectively.**
+**Feel free to experiment with different goal or problem statements to generate agents that suit your application requirements. Remember, focusing on the most fundamental aspects of your problem helps Principles assist you more effectively.**
 
 ---
 
-**Additional Example Singular Goals:**
+**Additional Examples:**
 
 - **Generate Agents for Language Learning**
 
