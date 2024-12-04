@@ -1,4 +1,4 @@
-// agents/ProblemAnalysisAgent.ts
+// src/agent-planner-agents/ProblemAnalysisAgent.ts
 
 import { sendMessageToChatGPT } from "../llms/openaiClient"
 import {cleanOpenAIResponse} from '../utils/responseUtils'

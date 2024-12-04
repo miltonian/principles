@@ -1,4 +1,4 @@
-// agents/OrchestratorAgent.ts
+// src/user-agent-objective-agents/OrchestratorAgent.ts
 const agentsConfigContents = require("../user-agent-objective-config/agentsConfig.js") as {id: string; path: string; name: string; dependencies: string[]}[]
 import { Agent } from '../scaffold';
 import AgentRegistry from '../scaffold/registry/AgentRegistry';

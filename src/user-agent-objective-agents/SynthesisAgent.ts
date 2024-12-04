@@ -1,4 +1,4 @@
-// agents/SynthesisAgent.ts
+// src/user-agent-objective-agents/SynthesisAgent.ts
 
 import { Agent } from '../scaffold'
 import { sendMessageToChatGPT } from "../llms/openaiClient"

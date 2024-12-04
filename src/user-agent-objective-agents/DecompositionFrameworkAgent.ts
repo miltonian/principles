@@ -1,4 +1,4 @@
-// agents/DecompositionFrameworkAgent.ts
+// src/user-agent-objective-agents/DecompositionFrameworkAgent.ts
 
 import { Agent } from '../scaffold'
 import { sendMessageToChatGPT } from "../llms/openaiClient"

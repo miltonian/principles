@@ -1,4 +1,4 @@
-// agents/PromptAnalysisAgent.ts
+// src/user-agent-objective-agents/PromptAnalysisAgent.ts
 
 import { Agent } from '../scaffold'
 import { sendMessageToChatGPT } from "../llms/openaiClient"

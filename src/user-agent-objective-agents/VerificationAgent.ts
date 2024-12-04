@@ -1,4 +1,4 @@
-// agents/VerificationAgent.ts
+// src/user-agent-objective-agents/VerificationAgent.ts
 
 import { Agent } from '../scaffold'
 import { sendMessageToChatGPT } from "../llms/openaiClient"

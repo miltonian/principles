@@ -1,4 +1,4 @@
-// agents/OutputFormattingAgent.ts
+// src/user-agent-objective-agents/OutputFormattingAgent.ts
 
 import { Agent } from '../scaffold'
 import { sendMessageToChatGPT } from "../llms/openaiClient"
