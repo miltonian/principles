@@ -6,6 +6,8 @@ Principles is a powerful and flexible framework that enables you to generate spe
 
 **Note:** This framework was designed as an experiment, and the code may require refining in some places.
 
+For a more exhaustive discussion of the Principles Framework, explore the [blog post here](https://alexanderhamilton.me/blog/principles-framework-generate-ai-agents-using-first-principles-reasoning).
+
 ## Influences
 
 This framework was heavily influenced by the following:
@@ -442,8 +444,6 @@ The iterative and adaptive nature of the Principles Framework is reinforced by s
 While the Principles Framework offers robust features, it is important to acknowledge its limitations:
 
 - **Experimental Nature**: The framework is experimental and may require refinement in certain areas.
-
-- **Performance Overhead**: Dynamic agent generation and execution order resolution may introduce performance overhead.
 
 - **Limited Error Messages**: Error handling is in place, but error messages may not always provide detailed guidance.
 
