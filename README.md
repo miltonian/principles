@@ -21,11 +21,6 @@ This framework was heavily influenced by the following:
   - [Influences](#influences)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
-  - [Architecture Overview](#architecture-overview)
-    - [Agents and Their Roles](#agents-and-their-roles)
-    - [Orchestrator Agent and Agent Coordination](#orchestrator-agent-and-agent-coordination)
-    - [Agent Registry and Dynamic Agent Loading](#agent-registry-and-dynamic-agent-loading)
-  - [How It Works](#how-it-works)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Steps](#steps)
@@ -33,6 +28,11 @@ This framework was heavily influenced by the following:
   - [Usage](#usage)
     - [Generating Agents](#generating-agents)
     - [Running the Agents](#running-the-agents)
+  - [Architecture Overview](#architecture-overview)
+    - [Agents and Their Roles](#agents-and-their-roles)
+    - [Orchestrator Agent and Agent Coordination](#orchestrator-agent-and-agent-coordination)
+    - [Agent Registry and Dynamic Agent Loading](#agent-registry-and-dynamic-agent-loading)
+  - [How It Works](#how-it-works)
   - [Detailed Workflow of Agent Generation and Execution](#detailed-workflow-of-agent-generation-and-execution)
   - [Advanced Features and Functionality](#advanced-features-and-functionality)
   - [Extensibility and Integration](#extensibility-and-integration)
@@ -59,54 +59,6 @@ This framework was heavily influenced by the following:
 - **Execution Order and Dependency Management**: Uses advanced algorithms to determine agent execution order based on dependencies.
 - **Error Handling and Validation**: Robust mechanisms ensure agents operate reliably and outputs are validated.
 - **Parallel Agent Execution**: Agents without dependencies can run in parallel for performance optimization.
-
-## Architecture Overview
-
-The Principles Framework is built around an orchestrated network of specialized agents, each designed to address a fundamental component of the user's goal or problem statement. The framework ensures efficient coordination and execution of these agents to produce a coherent and valuable output.
-
-### Agents and Their Roles
-
-Here is a detailed explanation of the primary agents within the framework and their specific roles:
-
-- **`AgentDesignAgent`**: Designs distinct agents with unique purposes based on fundamental components identified by the `TaskDecompositionAgent`.
-- **`ProblemAnalysisAgent`**: Analyzes user requirements to identify key goals, challenges, and desired outcomes.
-- **`TaskDecompositionAgent`**: Breaks down complex problems into fundamental components using first principles thinking.
-- **`CommunicationIntegrationAgent`**: Defines communication protocols and integration strategies for the multi-agent system.
-- **`SynthesisAgent`**: Synthesizes outputs from all other agents to produce the final result.
-- **`AlignmentVerificationAgent`**: Ensures that each component aligns with the overarching user objective.
-- **`BreakdownCompilationAgent`**: Compiles identified and verified fundamental components into a comprehensive textual breakdown.
-- **`DecompositionFrameworkAgent`**: Develops a structured methodology for decomposing user prompts into fundamental components.
-- **`IntentExtractionAgent`**: Identifies and isolates the core objectives and intentions behind a user prompt.
-
-### Orchestrator Agent and Agent Coordination
-
-The **`OrchestratorAgent`** plays a crucial role in the framework by coordinating all primary agents and synthesizing their outputs:
-
-- **Execution Order Resolution**: Uses dependency graphs and topological sorting (e.g., Kahn's algorithm) to determine the execution order of agents based on their dependencies.
-- **Agent Registration**: Dynamically imports and registers agents based on the configuration files.
-- **Parallel Execution**: Groups agents into execution levels, allowing agents without dependencies to run in parallel.
-- **Error Handling**: Implements retry logic and robust error handling mechanisms for agent execution.
-
-### Agent Registry and Dynamic Agent Loading
-
-The **`AgentRegistry`** is responsible for:
-
-- **Agent Management**: Registers and manages instances of agents, facilitating efficient retrieval and execution.
-- **Dynamic Loading**: Allows for dynamic loading and registration of agents at runtime based on configuration files.
-
-## How It Works
-
-1. **Input a Goal or Problem Statement**: Provide a clear and specific goal or problem statement you wish to address.
-
-2. **First Principles Breakdown**: The `TaskDecompositionAgent` uses first principles thinking to deconstruct your goal into its most fundamental components.
-
-3. **Agent Generation**: The `AgentDesignAgent` designs specialized agents, each targeting a fundamental component identified.
-
-4. **Agent Coordination and Integration**: The `CommunicationIntegrationAgent` defines how agents will interact and share information.
-
-5. **Execution Management**: The `OrchestratorAgent` resolves dependencies, manages execution order, and coordinates the operation of all agents.
-
-6. **Synthesis of Outputs**: The `SynthesisAgent` combines outputs from all agents to produce the final, coherent result.
 
 ## Installation
 
@@ -207,6 +159,54 @@ This script will:
 - **Compile the Project**: Ensure that all generated agents are compiled.
 - **Run the Agents**: The `OrchestratorAgent` executes the agents to process your prompt.
 - **Display Results**: Show the response generated by the agents, synthesized by the `SynthesisAgent`.
+
+## Architecture Overview
+
+The Principles Framework is built around an orchestrated network of specialized agents, each designed to address a fundamental component of the user's goal or problem statement. The framework ensures efficient coordination and execution of these agents to produce a coherent and valuable output.
+
+### Agents and Their Roles
+
+Here is a detailed explanation of the primary agents within the framework and their specific roles:
+
+- **`AgentDesignAgent`**: Designs distinct agents with unique purposes based on fundamental components identified by the `TaskDecompositionAgent`.
+- **`ProblemAnalysisAgent`**: Analyzes user requirements to identify key goals, challenges, and desired outcomes.
+- **`TaskDecompositionAgent`**: Breaks down complex problems into fundamental components using first principles thinking.
+- **`CommunicationIntegrationAgent`**: Defines communication protocols and integration strategies for the multi-agent system.
+- **`SynthesisAgent`**: Synthesizes outputs from all other agents to produce the final result.
+- **`AlignmentVerificationAgent`**: Ensures that each component aligns with the overarching user objective.
+- **`BreakdownCompilationAgent`**: Compiles identified and verified fundamental components into a comprehensive textual breakdown.
+- **`DecompositionFrameworkAgent`**: Develops a structured methodology for decomposing user prompts into fundamental components.
+- **`IntentExtractionAgent`**: Identifies and isolates the core objectives and intentions behind a user prompt.
+
+### Orchestrator Agent and Agent Coordination
+
+The **`OrchestratorAgent`** plays a crucial role in the framework by coordinating all primary agents and synthesizing their outputs:
+
+- **Execution Order Resolution**: Uses dependency graphs and topological sorting (e.g., Kahn's algorithm) to determine the execution order of agents based on their dependencies.
+- **Agent Registration**: Dynamically imports and registers agents based on the configuration files.
+- **Parallel Execution**: Groups agents into execution levels, allowing agents without dependencies to run in parallel.
+- **Error Handling**: Implements retry logic and robust error handling mechanisms for agent execution.
+
+### Agent Registry and Dynamic Agent Loading
+
+The **`AgentRegistry`** is responsible for:
+
+- **Agent Management**: Registers and manages instances of agents, facilitating efficient retrieval and execution.
+- **Dynamic Loading**: Allows for dynamic loading and registration of agents at runtime based on configuration files.
+
+## How It Works
+
+1. **Input a Goal or Problem Statement**: Provide a clear and specific goal or problem statement you wish to address.
+
+2. **First Principles Breakdown**: The `TaskDecompositionAgent` uses first principles thinking to deconstruct your goal into its most fundamental components.
+
+3. **Agent Generation**: The `AgentDesignAgent` designs specialized agents, each targeting a fundamental component identified.
+
+4. **Agent Coordination and Integration**: The `CommunicationIntegrationAgent` defines how agents will interact and share information.
+
+5. **Execution Management**: The `OrchestratorAgent` resolves dependencies, manages execution order, and coordinates the operation of all agents.
+
+6. **Synthesis of Outputs**: The `SynthesisAgent` combines outputs from all agents to produce the final, coherent result.
 
 ## Detailed Workflow of Agent Generation and Execution
 
