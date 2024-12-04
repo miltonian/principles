@@ -44,6 +44,7 @@ This framework was heavily influenced by the following:
   - [Troubleshooting](#troubleshooting)
     - [1. Circular Dependencies When Running Agents](#1-circular-dependencies-when-running-agents)
     - [2. Importance of First Principles Thinking](#2-importance-of-first-principles-thinking)
+    - [3. Accessing o1 Models on OpenAI](#3-accessing-o1-models-on-openai)
   - [Validation and Supporting Evidence](#validation-and-supporting-evidence)
     - [1. Dynamic Task Decomposition](#1-dynamic-task-decomposition)
     - [2. Iterative Problem-Solving and Adaptability](#2-iterative-problem-solving-and-adaptability)
@@ -408,6 +409,54 @@ First principles thinking involves breaking down complex problems into their mos
 
 - **Avoid Assumptions**: Challenge existing beliefs and focus on fundamental truths.
 
+### 3. Accessing o1 Models on OpenAI
+
+**Issue:**
+
+The Principles Framework utilizes o1 models from OpenAI, which require users to be on one of the higher-tier plans. If you encounter issues accessing these models, here are your options:
+
+**Solutions:**
+
+1. **Reach Out for Assistance:**
+
+   - **Contact Me**: If you need access to o1 models or have questions regarding their usage, feel free to reach out to me directly at [alex.hamilton.2016@gmail.com](mailto:alex.hamilton.2016@gmail.com).
+
+2. **Use GPT-4o as an Alternative:**
+
+   - **Replace o1 Models with GPT-4o**: If you do not have access to o1 models, you can modify the project to use GPT-4o instead. Here's how:
+   
+     a. **Search and Replace:**
+     
+        - Open the project in your preferred code editor.
+        - Search for instances of `o1` models in the codebase. 
+        - Replace them with `gpt-4o` models. For example, change `o1-mini` to `gpt-4o`.
+     
+     b. **Update Configuration:**
+     
+        - Ensure that any configuration files or environment variables referencing o1 models are updated to reflect the change to GPT-4o.
+     
+     c. **Test the Changes:**
+     
+        - After making the replacements, run the agents to ensure that the framework operates correctly with the new model.
+     
+     **Example Replacement:**
+     
+     ```javascript
+     // Original
+     const model = "o1-preview";
+     
+     // Updated
+     const model = "gpt-4o";
+     ```
+     
+     **Note:** Ensure that GPT-4o models are compatible with your usage and that any specific parameters required by o1 models are adjusted accordingly.
+
+**Additional Tips:**
+
+- **Check OpenAI Documentation**: Refer to [OpenAI's official documentation](https://platform.openai.com/docs) for details on available models and their configurations.
+  
+- **Community Support**: Engage with the community by opening an issue in the repository if you encounter difficulties or need further guidance.
+
 ## Validation and Supporting Evidence
 
 The methodologies underpinning the **Principles Framework** are strongly validated by research studies demonstrating the effectiveness of decomposition-based frameworks. Key findings from these studies provide evidence for the power and utility of the Principles approach:
@@ -453,11 +502,11 @@ While the Principles Framework offers robust features, it is important to acknow
 
 - **Performance Optimization**: Improve execution speed and efficiency.
 
-- **Improved Task Decomposition**: I believe there is a lot of room for improvement here using reasoning with first principles as well as tools for research and RAG implementations to improve the planning of each individual agent.
+- **Improved Task Decomposition**: There is significant room for improvement using reasoning with first principles as well as tools for research and RAG implementations to enhance the planning of each individual agent.
 
-- **More Tools**: More tools such as api and RAG implementations
+- **More Tools**: Introduction of additional tools such as API integrations and RAG (Retrieval-Augmented Generation) implementations.
 
-- **Nested Agent Generation**: Make it easier to generate agents that fit inside other agents for more complex processing 
+- **Nested Agent Generation**: Facilitate the generation of agents that can be nested within other agents for more complex processing.
 
 - **Community Contributions**: Encourage open-source contributions to expand functionality.
 
@@ -570,4 +619,3 @@ By following this README, you can generate specialized agents using Principles b
 ---
 
 **If you have any questions or need further assistance, please refer to the [Contributing](#contributing) section or open an issue on the repository.**
-
