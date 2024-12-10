@@ -108,77 +108,83 @@ export const handleAgentGeneration = async (
     for (const agent of agents) {
       console.log({ agentbeingprocessed: JSON.stringify(agent, null, 2) });
       const extractConfigTemplate = `
-You are an **expert system designer** tasked with configuring **autonomous agent classes** based on the provided **agent details** and the **overarching user goal**. Your objective is to **apply first principles thinking** to meticulously design each agent so that it can fully perform its specific part of the overarching goal without any vagueness.
+You are an **expert agent architect**, tasked with defining a single **autonomous agent class** that precisely fulfills the role described in the **Agent Details** while contributing to the **Overarching User Goal**. Your objective is to use **first principles thinking** to produce an unambiguous, fully realized specification of this agent's purpose, instructions, and expected outputs.
+
+**Key Requirements:**
+
+1. **Single-Purpose Focus:**  
+   The agent must strictly focus on its assigned role as described in the **Agent Details**. It should **not** attempt to handle tasks outside this domain.
+
+2. **Restricted Capabilities:**  
+   The agent's **only capability** is to process prompts through a Large Language Model (LLM).
+
+3. **Data Sources:**  
+   The agent can use:
+   - **User-Provided Data:** Any data given in the user's prompt.
+   - **Outputs from Previously Executed Agents:** Results already produced by agents that have run before this one.
+   - **LLM Training Data:** Relevant knowledge contained within the LLM's internal training data.  
+   
+   The agent cannot access external data sources beyond these.
+
+4. **Sequential Data Use:**  
+   The agent may leverage outputs from other agents only if those agents have already executed. The agent must not assume access to future or unexecuted agents' outputs.
+
+5. **First Principles Approach:**  
+   Decompose the agent's responsibilities into their most fundamental elements. Align the agent's instructions closely with its underlying purpose and the overarching user goal.
+
+6. **Clarity and Completeness:**  
+   Define the agent's instructions, expected outputs, and operational boundaries with absolute clarity. Each guideline should be specific and unambiguous.
+
+7. **No Extraneous Roles:**  
+   Do not introduce tasks unrelated to the agent's defined purpose, such as separate error handling or feedback loops, unless explicitly required.
+
+8. **Strict JSON Output Only:**  
+   The final response must strictly follow the JSON structure below. No additional commentary, explanations, or text outside the JSON object is allowed.
 
 ---
 
-## **Instructions**
+## **Instructions for Agent Definition**
 
-### **1. Deeply Understand the Overarching Goal**
+### 1. Understand the Agent's Core Purpose
 
-- **Carefully analyze** the **Overarching User Goal** and **Agent Details** provided.
-- **Identify the fundamental components** and **core objectives** that need to be addressed.
-- **Determine the specific subtask** that this agent is responsible for within the overarching goal.
+- Analyze the **Overarching User Goal** and the **Agent Details**.
+- Identify the singular, fundamental role the agent must perform.
+- Ensure the agent's role is minimal, self-contained, and not overlapping with other agents.
 
-### **2. Apply First Principles Thinking**
+### 2. Refine with First Principles Thinking
 
-- **Break down complex problems** into their most basic, fundamental elements.
-- **Question assumptions** and focus on the underlying principles relevant to the agent's task.
-- **Develop innovative solutions** by building up from these basic principles.
+- Reduce the agent's responsibilities to their most essential functions.
+- Remove unnecessary complexity and assumptions.
+- Break down the tasks until they cannot be reduced further without losing meaning.
 
-### **3. Define the Agent's Role and Responsibilities**
+### 3. Define the Agent's Role and Limits
 
-- **Agent's Purpose**:
-  - Provide a **clear and concise description** of the agent's specific role.
-  - **Explain how** this role **contributes to the overarching goal**.
-- **Operational Scope**:
-  - **Detail the boundaries** of the agent's functionality.
-  - **Specify what the agent should and should not do**.
-  - **Emphasize that the agent processes new user prompts** that align with the overarching goal.
-- **Inter-Agent Collaboration**:
-  - **Define how the agent interacts** with other agents.
-  - **Specify dependencies** and **data sharing mechanisms**.
-  - **Ensure synchronization** with other agents to avoid redundancy.
+- Clearly describe the agent's exact function and how it advances the overarching goal.
+- Specify what the agent will and will not do.
+- Emphasize that the agent only processes prompts via the LLM, using user data, previously produced agent outputs, and knowledge from the LLM's training data as needed.
 
-### **4. Develop Comprehensive Instructions**
+### 4. Draft Comprehensive Instructions
 
-- **Instructions Field**:
-  - **Write exhaustive and detailed instructions** that leave no room for ambiguity.
-  - **Include guidelines** on:
-    - **Handling inputs**: Describe how the agent should process new user prompts.
-    - **Processing logic**: Outline the step-by-step reasoning and algorithms the agent should employ.
-    - **Producing outputs**: Define the expected output and its format.
-    - **Error handling**: Explain how the agent should handle exceptions or unexpected inputs.
-  - **Use clear and precise language** to ensure the agent fully understands its tasks.
+- Provide step-by-step instructions detailing how the agent processes incoming prompts.
+- Include how the agent integrates user data, prior agent outputs, and relevant LLM training data.
+- Define reasoning steps, expected responses, and how to structure outputs.
+- Avoid any instructions unrelated to the agent's purpose.
 
-### **5. Specify Tools and Resources**
+### 5. Specify Expected Output and Format
 
-- **Tools**:
-  - **List any tools or resources** the agent requires.
-  - **Justify the necessity** of each tool in relation to the agent's tasks.
-- **Tool Variables**:
-  - **Define any variables or configurations** needed for the tools.
-  - **Provide default values** or guidelines for setting these variables.
+- Clearly define what the agent should output when it receives a new prompt.
+- Ensure the output aligns with the overarching goal.
+- Include an explicit JSON schema or structure that the agent will use for its results.
 
-### **6. Define Expected Output and Format**
+### 6. Integration with Other Agents
 
-- **Expected Output**:
-  - **Describe in detail** what the agent is expected to produce.
-  - **Ensure alignment** with the overarching goal and the agent's specific role.
-- **Output Format**:
-  - **Specify the exact JSON structure** the agent should use when outputting results.
-  - **Include data types**, **field descriptions**, and any **necessary constraints**.
+- If applicable, outline how this agent uses outputs from previously run agents.
+- The agent should not assume capabilities or data beyond those sources allowed.
 
-### **7. Formatting and Submission Guidelines**
+### 7. Complete the Required JSON Fields
 
-- **Response Format**:
-  - Your response should **only** be a **JSON object** adhering to the structure specified below.
-  - **Do not include any additional text**, comments, or explanations outside the JSON structure.
-- **Completeness**:
-  - **Ensure all fields** in the JSON structure are **thoroughly filled out**.
-  - **Double-check** for **accuracy** and **consistency**.
-- **Avoid Unrelated Agents**:
-  - **Do not create agents** that handle unrelated tasks (such as **error handling** or **feedback loops**) unless these are **directly related to the user-defined goal**.
+- Fill out every field in the provided structure accurately.
+- Double-check for consistency and completeness.
 
 ---
 
@@ -202,7 +208,7 @@ ${JSON.stringify(agent, null, 2)}
   "primaryAgents": [],      // List of primary agent IDs this agent coordinates with.
   "expectedOutput": "",     // Detailed description of the agent's expected output.
   "outputFormat": {},       // Exact JSON structure of the agent's output.
-  "dependencies": [],       // List of agent IDs this agent depends on.
+  "dependencies": [],       // List of agent IDs this agent depends on. (e.g. ["agent-1", "agent-2"])
   "tools": [],              // List of tools required by the agent.
   "toolVariables": {}       // Variables or configurations needed for the tools.
 }
@@ -211,10 +217,10 @@ ${JSON.stringify(agent, null, 2)}
       // Send the prompt to ChatGPT to extract configuration variables
       const configResponse = await sendMessageToChatGPT(
         { messages: [{ content: extractConfigTemplate, role: 'user' }] },
-        'gpt-4o-mini'
+        'o1-mini'
       );
 
-      const configText = cleanOpenAIResponse(configResponse.trim());
+      const configText = cleanOpenAIResponse(configResponse.trim(), true);
       console.log({ configText });
 
       // Parse the JSON response
