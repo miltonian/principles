@@ -59,6 +59,7 @@ const requireUncached = (modulePath: string) => {
   return require(modulePath);
 };
 
+import { OrchestratorAgent as PromptDecompositionOrchestratorAgent } from "../prompt-decomposition-agents/OrchestrationAgent"
 /**
  * Handles the entire agent generation process based on a single user input.
  * @param userPrompt - The description of agents to set up provided by the user.
@@ -87,7 +88,14 @@ export const handleAgentGeneration = async (
     let agentsConfig = loadAgentsConfig(configDir);
 
     // Step 1: Generate agent plan based on user prompt and objective
-    const agents = await getAgentPlan(userPrompt, userObjective);
+    // const agents = await getAgentPlan(userPrompt, userObjective);
+    const orchestrator = new PromptDecompositionOrchestratorAgent()
+    const agentResponse = await orchestrator.run(userPrompt)
+    console.log({agentResponse: JSON.stringify(agentResponse, null, 2)});
+    
+    const agents = agentResponse.finalBreakdown?.agents ||[]
+    
+
     console.log({ agents });
 
     if (!agents || agents.length === 0) {
@@ -575,6 +583,7 @@ Provide only the markdown text for the Overview.md file. nothing else, no commen
     // Define the file path
     const overviewFilePath = path.join(
       agentsDir,
+      '..',
       '..',
       `Overview.md`
     );
