@@ -16,12 +16,12 @@ export class OrchestratorAgent {
 
   private maxIterations = 5; // Increased to handle more complexity
 
-  async run(userPrompt: string): Promise<FinalIntegrationOutput> {
+  async run(userObjective: string): Promise<FinalIntegrationOutput> {
     // Initial extraction
-    const intentResult = await this.intentAgent.processPrompt(userPrompt);
-    if (intentResult.status === "error") return { status: "error", errorMessage: intentResult.errorMessage };
+    // const intentResult = await this.intentAgent.processPrompt(userPrompt);
+    // if (intentResult.status === "error") return { status: "error", errorMessage: intentResult.errorMessage };
 
-    let truthsResult = await this.truthsAgent.deriveTruths(intentResult.intent!);
+    let truthsResult = await this.truthsAgent.deriveTruths(userObjective!);
     if (truthsResult.status === "error") return { status: "error", errorMessage: truthsResult.errorMessage };
 
     let currentSubtasks: string[] = [];
@@ -32,12 +32,12 @@ export class OrchestratorAgent {
       iterationCount++;
 
       // Decompose with current truths
-      const decompositionResult = await this.decompositionAgent.decompose(intentResult.intent!, truthsResult.truths!);
+      const decompositionResult = await this.decompositionAgent.decompose(userObjective, truthsResult.truths!);
       if (decompositionResult.status === "error") return { status: "error", errorMessage: decompositionResult.errorMessage };
       currentSubtasks = decompositionResult.subtasks!;
 
       // Decide next step
-      const decisionResult = await this.refinementDecisionAgent.decide(intentResult.intent!, truthsResult.truths!, currentSubtasks);
+      const decisionResult = await this.refinementDecisionAgent.decide(userObjective, truthsResult.truths!, currentSubtasks);
       if (decisionResult.status === "error") return { status: "error", errorMessage: decisionResult.errorMessage };
 
       if (decisionResult.decision === "finalize") {
@@ -47,12 +47,12 @@ export class OrchestratorAgent {
         // Possibly we could try a different approach if needed.
       } else if (decisionResult.decision === "refine_truths") {
         // Re-derive truths
-        truthsResult = await this.truthsAgent.deriveTruths(intentResult.intent!);
+        truthsResult = await this.truthsAgent.deriveTruths(userObjective);
         if (truthsResult.status === "error") return { status: "error", errorMessage: truthsResult.errorMessage };
         // After refining truths, we will proceed to next iteration which will re-decompose and re-decide.
       }
     }
 
-    return this.integrationAgent.integrate(intentResult.intent!, intentResult.parameters!, truthsResult.truths!, currentSubtasks);
+    return this.integrationAgent.integrate(userObjective, {}, truthsResult.truths!, currentSubtasks, truthsResult.relationships || []);
   }
 }

@@ -20,6 +20,7 @@ This framework was heavily influenced by the following:
 - [Principles Framework](#principles-framework)
   - [Influences](#influences)
   - [Table of Contents](#table-of-contents)
+  - [Recent Enhancements](#recent-enhancements)
   - [Features](#features)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
@@ -52,22 +53,36 @@ This framework was heavily influenced by the following:
   - [Contributing](#contributing)
   - [License](#license)
 
+## Recent Enhancements
+
+- **Iterative Refinement of Fundamental Truths and Subtasks**:  
+  The framework can now iteratively refine both the fundamental truths and the subtasks. If initial truths prove insufficient or if subtasks are not minimal or feasible, it can re-derive truths or re-decompose tasks as needed. This ensures that the final solution is always built upon stable, minimal, and actionable components.
+
+- **Feasibility Checks for Subtasks**:  
+  The decomposition logic now ensures that subtasks remain within the capabilities of a text-based assistant. Instead of producing unfeasible instructions (e.g., external physical actions), it focuses on tasks the agents can realistically handle, such as generating summaries, analyses, or structured proposals.
+
+- **Comprehensive Agent Descriptions for Prompt Generation**:  
+  The final integrated output now includes exhaustively detailed agent descriptions. Each agent specification is rich in context, instructions, constraints, and examples—enabling you to directly transform these final descriptions into robust prompts for creating or configuring agents in your downstream workflows.
+
+These enhancements maintain and build upon the original core idea of using first principles reasoning to design specialized agents, while ensuring an adaptive, iterative refinement process and producing final outputs that are both minimal and extremely prompt-ready.
+
 ## Features
 
-- **First Principles Decomposition**: Break down your goal into its most fundamental truths using first principles thinking.
-- **Automated Agent Generation**: Dynamically create specialized agents that address each fundamental component of your goal.
-- **Modular and Extensible Design**: The framework's architecture allows for easy customization and expansion.
-- **Execution Order and Dependency Management**: Uses advanced algorithms to determine agent execution order based on dependencies.
-- **Error Handling and Validation**: Robust mechanisms ensure agents operate reliably and outputs are validated.
-- **Parallel Agent Execution**: Agents without dependencies can run in parallel for performance optimization.
+- **First Principles Decomposition**: Break down your goal into fundamental truths and minimal subtasks.
+- **Iterative Refinement**: Dynamically re-derive truths or refine subtasks if initial attempts are insufficient or misaligned.
+- **Feasibility Assurance**: Ensures subtasks are strictly within the realm of a text-based assistant’s capabilities.
+- **Rich Final Output**: Produces highly detailed agent definitions, ready to be turned into prompts for agent instantiation.
+- **Execution Order & Dependency Management**: Uses sophisticated algorithms to determine the optimal execution order of agents.
+- **Error Handling & Validation**: Provides robust error handling, standardized JSON formats, and iterative improvements to correct issues.
+- **Parallel Execution**: Agents without dependencies can run in parallel for performance gains.
 
 ## Installation
 
 ### Prerequisites
 
 - **Node.js**: Version 14 or higher
-- **npm** or **Yarn**: npm version 6 or higher, or Yarn version 1.22 or higher
-- **OpenAI API Key**: You need an OpenAI API key to use the GPT models.
+- **npm** or **Yarn**: npm v6+ or Yarn v1.22+
+- **OpenAI API Key**: Required for GPT models
 
 ### Steps
 
@@ -89,533 +104,160 @@ This framework was heavily influenced by the following:
 3. **Set Up Environment Variables**
 
    Create a `.env` file in the root directory and add your OpenAI API key:
-
    ```env
    OPEN_AI_TOKEN=your-openai-api-key
    ```
 
-4. **Ensure `.env` is Ignored in Version Control**
+4. **Check `.env` in `.gitignore`**
 
-   Verify that your `.gitignore` includes the `.env` file to prevent it from being committed:
-
-   ```gitignore
-   node_modules/
-   dist/
-   .env
-   ```
+   Ensure `.env` is in `.gitignore` to avoid committing sensitive data.
 
 ## Getting Started
 
-Principles allows you to generate specialized AI agents by providing a **well-defined goal or problem statement**. By applying first principles thinking, Principles breaks down your goal into its most basic, fundamental components—the smallest building blocks of the problem. It then generates agents that address each of these fundamental components. These agents collaborate to solve your overall goal and can process subsequent prompts more effectively than general-purpose language models.
+Principles takes your goal or problem statement and applies first principles reasoning to identify fundamental truths and minimal subtasks. Through iterative refinement, it ensures these fundamental pieces are stable, aligned, and feasible for a text-based assistant. The final output includes a thoroughly documented set of agents, allowing you to directly generate effective prompts or seamlessly integrate the agents into your solution.
 
 ## Usage
 
 ### Generating Agents
 
-To generate agents based on your goal or problem statement, use the `generate-agents` script:
-
 ```bash
-npm run generate-agents "Your goal or problem statement here."
-# or
-yarn generate-agents "Your goal or problem statement here."
+npm run generate-agents "I want to design a multi-agent system using first principles thinking."
 ```
 
-**Example:**
-
-```bash
-npm run generate-agents "I want to optimize my daily schedule to improve productivity."
-```
-
-This script will:
-
-- **Process Your Goal or Problem Statement**: Understand your specific objective.
-- **First Principles Breakdown**: Decompose your goal into its most fundamental components using the `TaskDecompositionAgent`.
-- **Generate Specialized Agents**: Use the `AgentDesignAgent` to create agents designed to address each fundamental component.
-- **Define Agent Interactions**: The `CommunicationIntegrationAgent` sets up how agents will interact.
-- **Create a Package**: Generate a new package containing the agents and configurations.
+This command:
+- Derives fundamental truths from your goal.
+- Decomposes the goal into minimal subtasks.
+- Iteratively refines truths or tasks if needed, ensuring both are minimal and actionable.
+- Produces a package in `packages/` containing the generated agents and all necessary configurations, complete with comprehensive agent specifications.
 
 ### Running the Agents
 
-After generating the agents, you can use them to process prompts related to your goal. The agents, designed based on the fundamental components of your goal, will handle these prompts more effectively.
-
-To run the agents with a test prompt:
+After generating agents, you can run them against new prompts:
 
 ```bash
 cd packages/<generated-agent-directory>/
-
-npm run run-agents "Your test prompt here."
-# or
-yarn run-agents "Your test prompt here."
+npm run run-agents "How should these agents adapt if the project's constraints change?"
 ```
 
-**Example:**
-
-```bash
-cd packages/agent-package-1633036800000/
-npm run run-agents "Here is my list of tasks for today: write a report, attend a meeting, respond to emails, and plan the next project. How should I prioritize them to maximize productivity?"
-```
-
-This script will:
-
-- **Compile the Project**: Ensure that all generated agents are compiled.
-- **Run the Agents**: The `OrchestratorAgent` executes the agents to process your prompt.
-- **Display Results**: Show the response generated by the agents, synthesized by the `SynthesisAgent`.
+The agents respond with results grounded in refined truths and minimal subtasks. The final breakdown includes extensive agent descriptions, enabling you to directly craft prompts for new agents.
 
 ## Architecture Overview
 
-The Principles Framework is built around an orchestrated network of specialized agents, each designed to address a fundamental component of the user's goal or problem statement. The framework ensures efficient coordination and execution of these agents to produce a coherent and valuable output.
-
 ### Agents and Their Roles
 
-Here is a detailed explanation of the primary agents within the framework and their specific roles:
-
-- **`AgentDesignAgent`**: Designs distinct agents with unique purposes based on fundamental components identified by the `TaskDecompositionAgent`.
-- **`ProblemAnalysisAgent`**: Analyzes user requirements to identify key goals, challenges, and desired outcomes.
-- **`TaskDecompositionAgent`**: Breaks down complex problems into fundamental components using first principles thinking.
-- **`CommunicationIntegrationAgent`**: Defines communication protocols and integration strategies for the multi-agent system.
-- **`SynthesisAgent`**: Synthesizes outputs from all other agents to produce the final result.
-- **`AlignmentVerificationAgent`**: Ensures that each component aligns with the overarching user objective.
-- **`BreakdownCompilationAgent`**: Compiles identified and verified fundamental components into a comprehensive textual breakdown.
-- **`DecompositionFrameworkAgent`**: Develops a structured methodology for decomposing user prompts into fundamental components.
-- **`IntentExtractionAgent`**: Identifies and isolates the core objectives and intentions behind a user prompt.
+Within Principles, agents address distinct aspects of your goal’s decomposition. While the framework uses a variety of conceptual agents (such as those analyzing the problem, decomposing tasks, designing communication strategies, and generating agent designs), the newly introduced iterative refinement logic ensures that by the time you have your final agents, every fundamental assumption and subtask has been verified and adjusted if necessary.
 
 ### Orchestrator Agent and Agent Coordination
 
-The **`OrchestratorAgent`** plays a crucial role in the framework by coordinating all primary agents and synthesizing their outputs:
-
-- **Execution Order Resolution**: Uses dependency graphs and topological sorting (e.g., Kahn's algorithm) to determine the execution order of agents based on their dependencies.
-- **Agent Registration**: Dynamically imports and registers agents based on the configuration files.
-- **Parallel Execution**: Groups agents into execution levels, allowing agents without dependencies to run in parallel.
-- **Error Handling**: Implements retry logic and robust error handling mechanisms for agent execution.
+The **OrchestratorAgent** orchestrates execution, resolves dependencies, and manages iterative refinements. If necessary, it re-derives truths or re-decomposes tasks until everything is minimal and aligned.
 
 ### Agent Registry and Dynamic Agent Loading
 
-The **`AgentRegistry`** is responsible for:
-
-- **Agent Management**: Registers and manages instances of agents, facilitating efficient retrieval and execution.
-- **Dynamic Loading**: Allows for dynamic loading and registration of agents at runtime based on configuration files.
+The registry allows dynamic loading of agents, enabling flexible scaling and customization. With iterative refinement ensuring stable final outputs, you can trust that what’s loaded is coherent and ready for use.
 
 ## How It Works
 
-1. **Input a Goal or Problem Statement**: Provide a clear and specific goal or problem statement you wish to address.
-
-2. **First Principles Breakdown**: The `TaskDecompositionAgent` uses first principles thinking to deconstruct your goal into its most fundamental components.
-
-3. **Agent Generation**: The `AgentDesignAgent` designs specialized agents, each targeting a fundamental component identified.
-
-4. **Agent Coordination and Integration**: The `CommunicationIntegrationAgent` defines how agents will interact and share information.
-
-5. **Execution Management**: The `OrchestratorAgent` resolves dependencies, manages execution order, and coordinates the operation of all agents.
-
-6. **Synthesis of Outputs**: The `SynthesisAgent` combines outputs from all agents to produce the final, coherent result.
+1. **Provide a Goal**: Supply a clear objective or problem statement.
+2. **First Principles Reasoning**: Identify fundamental truths and minimal subtasks.
+3. **Iterative Refinement**: If something’s off, re-check truths or tasks to achieve stable, minimal results.
+4. **Finalize Agents**: Produce a final set of agents, thoroughly documented for immediate prompt generation or integration.
 
 ## Detailed Workflow of Agent Generation and Execution
 
-1. **User Objective Definition**: The `IntentExtractionAgent` captures and processes user objectives from the provided prompt.
-
-2. **Task Decomposition**: The `TaskDecompositionAgent` breaks down the problem into fundamental components using first principles thinking.
-
-3. **Agent Design and Communication**:
-
-   - **Agent Design**: The `AgentDesignAgent` creates specialized agents for each fundamental component.
-   - **Communication Integration**: The `CommunicationIntegrationAgent` defines how agents will interact and share information.
-
-4. **Execution Order Resolution**: The `OrchestratorAgent` resolves dependencies between agents using Kahn's algorithm and groups agents into execution levels.
-
-5. **Agent Execution**:
-
-   - **Parallel Execution**: Agents at the same execution level run in parallel if they have no dependencies.
-   - **Retry Logic**: Implements retry mechanisms and error handling for robustness.
-
-6. **Synthesis of Outputs**: The `SynthesisAgent` integrates outputs from various agents to produce the final result.
+1. **Intent Extraction & Fundamental Truths**: Understand the user’s goals and establish core assumptions.
+2. **Task Decomposition & Iterative Refinement**: Break down the goal into subtasks, and if needed, refine truths or tasks again.
+3. **Integration**: Combine everything into a final, detail-rich agent output that can directly feed into prompt creation.
 
 ## Advanced Features and Functionality
 
-- **Execution Order and Dependency Management**: Intelligent resolution of agent execution order based on dependencies.
-
-- **Error Handling and Validation Mechanisms**: Agents return errors in a standardized JSON format, and outputs are validated against expected schemas.
-
-- **Parallel Agent Execution**: Enhances performance by running independent agents concurrently.
-
-- **Shared Data Contexts**: Agents can read and write to shared data contexts for efficient data sharing.
-
-- **Agent Templates and Customization**:
-
-  - **Templates**: Use `GenericAgentTemplate` and `OrchestratorAgentTemplate` to create custom agents.
-  - **Customization**: Modify templates to create agents tailored to specific needs.
+- **Iterative Refinement Loops**: Continues refining until minimal, feasible, and aligned conditions are met.
+- **Strict Feasibility**: Prevents agents from receiving impossible subtasks.
+- **Comprehensive Agent Data**: Each agent’s final definition is so thorough you can immediately create prompts from it.
 
 ## Extensibility and Integration
 
-The framework is designed for easy extension and integration:
-
-- **Adding New Agents**: Create new agent classes and register them in the `agentsConfig.ts` file.
-
-- **Integration with Other Systems**: Agents can be integrated into larger workflows or interact with external services.
-
-- **Customization**: Users can modify existing agents or create new ones to suit their specific application requirements.
+The final result is a package of agents you can integrate into larger workflows or use as blueprints for generating agent prompts. The in-depth final specifications enable seamless adoption in any downstream application.
 
 ## Error Handling and Validation
 
-- **Structured Error Responses**: Agents return errors in a standardized JSON format for consistency.
-
-- **Output Validation**: Ensures that agent outputs adhere to expected formats and structures, preventing downstream errors.
-
-- **Retry Mechanisms**: Agents implement retry logic and backoff strategies to handle transient failures.
+The framework uses standardized JSON errors and adheres to strict validation checks. If subtasks or truths are problematic, iterative refinement corrects them before finalization, reducing manual debugging.
 
 ## Simplified Example Workflow
 
 ### Step 1: Generate Agents Based on a Goal or Problem Statement
 
 **Command:**
-
 ```bash
-npm run generate-agents "I want to improve my productivity by optimizing my daily schedule."
+npm run generate-agents "I want to design a multi-agent system using first principles thinking."
 ```
 
-**What This Does:**
+**Process:**
+- Extracts intent, derives fundamental truths.
+- Decomposes the problem into minimal subtasks.
+- Iteratively refines both truths and subtasks if initial attempts aren’t optimal.
+- Produces a package with fully documented agents.
 
-- **First Principles Breakdown**: Decomposes your goal into the most fundamental components:
-  - **Time Management**
-  - **Task Prioritization**
-  - **Energy Level Assessment**
-- **Generates Specialized Agents**:
-  - **Time Management Agent**
-  - **Task Prioritization Agent**
-  - **Energy Assessment Agent**
-- **Defines Agent Interactions**: Sets up communication protocols between agents.
-- **Creates a New Package**: A package directory is created under `packages/` with all necessary configurations and code.
+**Outcome:**  
+You get a new directory in `packages/` containing your agents and their configurations.
 
 ### Step 2: Use the Agents to Process Prompts
 
 **Command:**
-
 ```bash
-cd packages/agent-package-1633036800000/
-npm run run-agents "I have high energy in the mornings and tend to feel sluggish after lunch. My tasks today are writing a report, team meeting, and responding to emails. What's the best schedule for me?"
+cd packages/<generated-agent-directory>/
+npm run run-agents "How should these agents adapt if the project's constraints change?"
 ```
 
-**Expected Output:**
-
-```
-Agent Output:
-{
-  "optimizedSchedule": [
-    {
-      "time": "9:00 AM - 11:00 AM",
-      "task": "Writing the report",
-      "reason": "High-priority task aligned with peak energy levels."
-    },
-    {
-      "time": "11:30 AM - 12:30 PM",
-      "task": "Team meeting",
-      "reason": "Collaborative task scheduled before lunch."
-    },
-    {
-      "time": "2:00 PM - 4:00 PM",
-      "task": "Responding to emails",
-      "reason": "Less demanding task scheduled during lower energy period."
-    }
-  ],
-  "additionalSuggestions": [
-    "Take a short walk after lunch to boost energy.",
-    "Prioritize deep work tasks in the morning."
-  ]
-}
-```
-
-**Interpreting the Output:**
-
-- **Optimized Schedule**: A schedule that aligns tasks with your energy levels and prioritizes important tasks.
-- **Reasons Provided**: Each scheduling decision is backed by reasoning based on fundamental components.
-- **Additional Suggestions**: Tips to further enhance productivity.
+**Result:**
+- The agents respond coherently, aligned with refined truths and minimal subtasks.
+- The final breakdown includes complete agent descriptions, enabling direct prompt creation for future agents.
 
 ## Iterative Refinement and Integration
 
-Principles allows you to refine the generated agents or integrate them into larger workflows:
-
-- **Customize Agents**: Modify the agents' code to enhance their capabilities or better suit your preferences.
-
-- **Integrate into Other Systems**: Use generated agents as components within other systems or workflows.
-
-- **Improve Performance**: Continuously refine and test the agents based on feedback from their outputs.
-
-**Example:**
-
-You may want to include a new fundamental component like **Distraction Management**:
-
-1. **Add a Distraction Management Agent**:
-
-   - Create a new agent focused on identifying and minimizing distractions.
-
-2. **Integrate the New Agent**:
-
-   - Update the orchestrator and `agentsConfig.ts` to include the new agent.
-
-3. **Test and Refine**:
-
-   - Run the agents with new prompts and refine as needed.
+Iterative refinement ensures that the fundamental truths and subtasks aren’t just derived once but revisited until stable. This process guarantees that the final agent set is minimal, accurate, and fully detailed, so you can immediately leverage the final agent descriptions as powerful prompt templates.
 
 ## Troubleshooting
 
 ### 1. Circular Dependencies When Running Agents
 
-**Issue:**
-
-Encountering errors related to circular dependencies when running the agents.
-
-**What is a Circular Dependency?**
-
-A circular dependency occurs when two or more agents depend on each other, directly or indirectly, creating a loop that prevents proper execution.
-
-**Solution:**
-
-1. **Identify the Circular Dependency**:
-
-   - Open the `agentsConfig.ts` file in the `config` directory of your generated package.
-   - Look for agents that list each other as dependencies.
-
-2. **Resolve the Dependency Loop**:
-
-   - Modify the dependencies to remove the circular reference.
-   - Ensure that each agent depends only on agents executed before it.
-
-3. **Re-run the Agents**:
-
-   - After resolving the dependencies, run the `run-agents` command again.
-
-**Tip:**
-
-- If you're unsure how to fix the dependencies, you can copy the `agentsConfig.ts` content and use an LLM to help identify and resolve the issue.
+If you encounter circular dependencies:
+- Follow the existing guidelines to identify and remove cycles.
+- The iterative refinement may help stabilize the order, but manual edits in `agentsConfig.ts` might still be required.
 
 ### 2. Importance of First Principles Thinking
 
-**Understanding First Principles Thinking:**
-
-First principles thinking involves breaking down complex problems into their most basic, fundamental elements. This method allows you to build solutions from the ground up, free from assumptions and conventional wisdom.
-
-**Why It Matters in Principles:**
-
-- **Effective Decomposition**: Ensures your goal is broken down into fundamental components, leading to more precise agents.
-
-- **Customized Solutions**: Specialized agents are finely tuned to your specific problem.
-
-- **Enhanced Collaboration**: Agents built from first principles can collaborate more effectively.
-
-**Best Practices:**
-
-- **Define a Singular, Well-Defined Goal**: Provide a clear and specific problem statement.
-
-- **Focus on Fundamental Components**: Think about the smallest elements that make up your problem.
-
-- **Avoid Assumptions**: Challenge existing beliefs and focus on fundamental truths.
+First principles drive every step:
+- Decompose your goal into undeniable truths and minimal tasks.
+- Iterative refinement ensures these fundamentals stay correct and aligned, improving outcomes and reducing complexity.
 
 ### 3. Accessing o1 Models on OpenAI
 
-**Issue:**
-
-The Principles Framework utilizes o1 models from OpenAI, which require users to be on one of the higher-tier plans. If you encounter issues accessing these models, here are your options:
-
-**Solutions:**
-
-1. **Reach Out for Assistance:**
-
-   - **Contact Me**: If you need access to o1 models or have questions regarding their usage, feel free to reach out to me directly at [alex.hamilton.2016@gmail.com](mailto:alex.hamilton.2016@gmail.com).
-
-2. **Use GPT-4o as an Alternative:**
-
-   - **Replace o1 Models with GPT-4o**: If you do not have access to o1 models, you can modify the project to use GPT-4o instead. Here's how:
-   
-     a. **Search and Replace:**
-     
-        - Open the project in your preferred code editor.
-        - Search for instances of `o1` models in the codebase. 
-        - Replace them with `gpt-4o` models. For example, change `o1-mini` to `gpt-4o`.
-     
-     b. **Update Configuration:**
-     
-        - Ensure that any configuration files or environment variables referencing o1 models are updated to reflect the change to GPT-4o.
-     
-     c. **Test the Changes:**
-     
-        - After making the replacements, run the agents to ensure that the framework operates correctly with the new model.
-     
-     **Example Replacement:**
-     
-     ```javascript
-     // Original
-     const model = "o1-preview";
-     
-     // Updated
-     const model = "gpt-4o";
-     ```
-     
-     **Note:** Ensure that GPT-4o models are compatible with your usage and that any specific parameters required by o1 models are adjusted accordingly.
-
-**Additional Tips:**
-
-- **Check OpenAI Documentation**: Refer to [OpenAI's official documentation](https://platform.openai.com/docs) for details on available models and their configurations.
-  
-- **Community Support**: Engage with the community by opening an issue in the repository if you encounter difficulties or need further guidance.
+If you need o1 models but encounter access issues:
+- Refer to the provided instructions on contacting support or substituting another model.
+- The iterative and prompt-ready nature of the framework remains effective regardless of the underlying model.
 
 ## Validation and Supporting Evidence
 
-The methodologies underpinning the **Principles Framework** are strongly validated by research studies demonstrating the effectiveness of decomposition-based frameworks. Key findings from these studies provide evidence for the power and utility of the Principles approach:
-
 ### 1. Dynamic Task Decomposition
 
-The Principles Framework's focus on breaking down complex goals into their most fundamental components aligns with results from the **TDAG (Dynamic Task Decomposition and Agent Generation)** framework:
-
-- **TDAG Results**:
-  - Achieved up to **33% improvement** in success rates on compositional reasoning tasks.
-  - **28.3% increase** in task completion rates in dynamic environments (ALFWorld benchmark).
-  - **27% performance boost** on interactive tasks (WebShop benchmark).
-- **Key Advantages**:
-  - **Dynamic Adaptability**: TDAG dynamically decomposes tasks and generates custom subagents, enhancing adaptability in complex, real-world tasks.
-  - **Error Reduction**: Significant reduction in error rates, particularly in cascading task failures, due to dynamic adjustments and specialized subagents.
-
-[Reference: TDAG Framework and ItineraryBench](https://arxiv.org/abs/2402.10178)
+Research confirms that dynamic decomposition enhances problem-solving success. Our iterative refinement aligns with these findings, ensuring tasks remain consistently minimal and aligned.
 
 ### 2. Iterative Problem-Solving and Adaptability
 
-The iterative and adaptive nature of the Principles Framework is reinforced by studies on modular problem-solving systems:
-
-- **Dynamic Role Discovery and Assignment (DRDA)**:
-  - Improved task allocation efficiency by **20%-30%** using dynamic role assignment in multi-agent systems.
-  - **Performance Gains**: Achieved higher win rates in complex scenarios, demonstrating the effectiveness of dynamic role policies and restricted action spaces.
-- **Key Insights**:
-  - Dynamic role assignment allows agents to adapt to changing environments and tasks.
-  - Role-specific policies enhance learning efficiency by reducing action space complexity.
-
-[Reference: Dynamic Role Discovery and Assignment](https://link.springer.com/content/pdf/10.1007/s40747-023-01071-x.pdf)
+Studies on adaptive, iterative approaches show that refining fundamentals and tasks over multiple passes leads to better, more coherent results. This framework embraces that adaptability, producing final agents you can trust.
 
 ## Limitations and Future Enhancements
 
-While the Principles Framework offers robust features, it is important to acknowledge its limitations:
-
-- **Experimental Nature**: The framework is experimental and may require refinement in certain areas.
-
-- **Limited Error Messages**: Error handling is in place, but error messages may not always provide detailed guidance.
-
-**Future Enhancements:**
-
-- **Enhanced Documentation**: More comprehensive guides and examples.
-
-- **Performance Optimization**: Improve execution speed and efficiency.
-
-- **Improved Task Decomposition**: There is significant room for improvement using reasoning with first principles as well as tools for research and RAG implementations to enhance the planning of each individual agent.
-
-- **More Tools**: Introduction of additional tools such as API integrations and RAG (Retrieval-Augmented Generation) implementations.
-
-- **Nested Agent Generation**: Facilitate the generation of agents that can be nested within other agents for more complex processing.
-
-- **Community Contributions**: Encourage open-source contributions to expand functionality.
+While now more adaptive, feasible, and exhaustive in output:
+- Further heuristics could refine when to re-check truths vs. re-run decomposition.
+- Additional logging or instrumentation could enhance transparency.
+- Exploring broader integration with retrieval-augmented generation (RAG) or other data sources may further improve the process.
 
 ## Contributing
 
-We welcome contributions to enhance the Principles Framework. To contribute:
-
-1. **Fork the Repository**
-
-   ```bash
-   git clone https://github.com/miltonian/principles.git
-   cd principles
-   ```
-
-2. **Create a New Branch**
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Make Your Changes**
-
-   Implement your feature or fix the bug. Please ensure your code follows the project's coding standards and includes appropriate tests.
-
-4. **Run Tests**
-
-   ```bash
-   npm test
-   # or
-   yarn test
-   ```
-
-5. **Commit Your Changes**
-
-   ```bash
-   git commit -m "Add feature: Your feature description"
-   ```
-
-6. **Push to Your Fork**
-
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-7. **Submit a Pull Request**
-
-   Go to the original repository on GitHub and create a pull request from your fork.
-
-**Code Standards and Guidelines:**
-
-- **Code Style**: Follow existing coding styles and best practices.
-
-- **Testing**: Write unit tests for new features and ensure existing tests pass.
-
-- **Documentation**: Update documentation and comments where appropriate.
-
-- **Issue Tracking**: Use GitHub Issues to report bugs or request features.
+Contributions are welcome. If you have ideas for better heuristics, improved logging, or richer final agent definitions, follow the [Contributing](#contributing) guidelines to submit your enhancements.
 
 ## License
 
 Principles is released under the [MIT License](LICENSE).
 
----
-
-By following this README, you can generate specialized agents using Principles based on a **goal or problem statement**, leveraging first principles thinking to break it down into its most fundamental truths or components. The generated agents collaborate to address each component, allowing you to process subsequent prompts with greater accuracy and efficiency.
-
-**Feel free to experiment with different goal or problem statements to generate agents that suit your application requirements. Remember, focusing on the most fundamental aspects of your problem helps Principles assist you more effectively.**
-
----
-
-**Additional Examples:**
-
-- **Generate Agents for Language Learning**
-
-  ```bash
-  npm run generate-agents "I want to learn French by practicing daily conversations."
-  ```
-
-  **Fundamental Components:**
-
-  - **Vocabulary Acquisition**
-  - **Grammar Understanding**
-  - **Pronunciation Practice**
-
-  **Test the Agents:**
-
-  ```bash
-  cd packages/<generated-agent-directory>/
-  npm run run-agents "Can you help me practice ordering food in a French restaurant?"
-  ```
-
-- **Generate Agents for Health Monitoring**
-
-  ```bash
-  npm run generate-agents "I need an assistant that helps me monitor my daily water intake and reminds me to stay hydrated."
-  ```
-
-  **Fundamental Components:**
-
-  - **Water Intake Tracking**
-  - **Hydration Reminders**
-
-  **Test the Agents:**
-
-  ```bash
-  cd packages/<generated-agent-directory>/
-  npm run run-agents "I drank two glasses of water this morning."
-  ```
-
----
-
-**If you have any questions or need further assistance, please refer to the [Contributing](#contributing) section or open an issue on the repository.**

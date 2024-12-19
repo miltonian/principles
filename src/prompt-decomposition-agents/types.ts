@@ -7,9 +7,16 @@ export interface IntentOutput {
     errorMessage?: string;
   }
   
+  export interface Relationship {
+    from: string;
+    to: string;
+    description: string;
+  }
+  
   export interface FundamentalTruthsOutput {
     status: "success" | "error";
     truths?: string[];
+    relationships?: Relationship[];
     errorMessage?: string;
   }
   
@@ -46,6 +53,8 @@ export interface IntentOutput {
     persona: string;
     functionality: string;
     responsibilities: string;
+    needsContextFromPrompt: 'true' | 'false';
+    dependencies: string[];
   }
   
   export interface FinalIntegrationOutput {

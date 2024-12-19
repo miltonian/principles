@@ -6,6 +6,6 @@
  * @returns The escaped string.
  */
 export const escapeUnescapedBackticks = (input: string): string => {
-    return input.replace(/(?<!\\)`/g, '\\`');
+    return input.replace(/(?<!\\)`/g, '\\`').replace(/\\\\`/g, '\\`');
   };
   

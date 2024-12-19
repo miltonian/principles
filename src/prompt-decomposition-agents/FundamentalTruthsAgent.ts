@@ -11,15 +11,30 @@ export class FundamentalTruthsAgent {
     const systemPrompt = `
 You are a specialized assistant that identifies fundamental truths from a given user intent.
 These truths are basic, irreducible facts or assumptions that must hold true for the problem domain.
+
 You MUST:
-- Return ONLY a JSON array of strings.
-- Each element should be a fundamental truth that underpins the reasoning process.
+- Return ONLY valid JSON.
+- The JSON should have the structure:
+  {
+    "truths": ["truth1", "truth2", ...],
+    "relationships": [
+      {"from": "truth1", "to": "truth2", "description": "how truth1 supports or relates to truth2"},
+      ...
+    ]
+  }
+  
+- "truths" should be a JSON array of strings.
+- "relationships" should be a JSON array of objects, each with "from", "to", and "description" keys:
+  - "from" and "to" must be strings that match exactly one of the truths listed in the "truths" array.
+  - "description" should be a short string explaining the nature of their relationship.
+  
 - No extra text outside the JSON.
 `;
 
     const userMessage = `
 User Intent: "${intent}"
-List the fundamental truths as a JSON array of strings:
+Identify the fundamental truths and how they relate to each other.
+Return a JSON object with "truths" and "relationships" as described.
 `;
 
 
@@ -38,14 +53,16 @@ List the fundamental truths as a JSON array of strings:
       }, 'o1-preview'));
 
     try {
-      const truths = JSON.parse(response);
-      if (Array.isArray(truths)) {
-        return { status: "success", truths };
+      const data = JSON.parse(response);
+      if (data && Array.isArray(data.truths) && Array.isArray(data.relationships)) {
+        // We have truths and relationships
+        // Adjust your FundamentalTruthsOutput type if needed to include relationships
+        return { status: "success", truths: data.truths, relationships: data.relationships };
       } else {
-        return { status: "error", errorMessage: "No array found for truths." };
+        return { status: "error", errorMessage: "Missing truths or relationships in response." };
       }
     } catch {
-      return { status: "error", errorMessage: "Failed to parse truths." };
+      return { status: "error", errorMessage: "Failed to parse truths and relationships." };
     }
   }
 }

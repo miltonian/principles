@@ -153,6 +153,8 @@ export class ${className} implements Agent {
           - **Error Handling**: If required data is missing or incomplete, respond with the error JSON format without fabricating data. Lean on the side that you have all the data that you need unless a requirement is specified that you need it but the actual data of that requirement is not included.
           - Do not error if there is nothing that is explicitly marked as required.
           - Ensure that the output is valid JSON. Do not include any additional text, explanations, or comments outside the JSON structure.
+          \The following instructions **extra important** as they tell you what you did wrong before and how to fix it
+          \${context?.variables?.improvedInstructions}
 
           **Output Format Requirement**:
 
@@ -280,6 +282,10 @@ export class ${className} implements Agent {
     - **Error Handling**: If required data is missing or incomplete, respond with the error JSON format without fabricating data. Lean on the side that you have all the data that you need unless a requirement is specified that you need it but the actual data of that requirement is not included
     - do not error if there is nothing that is explicitly marked as required
     - Ensure that the output is valid JSON. Do not include any additional text, explanations, or comments outside the JSON structure.
+
+    \${context?.variables?.improvedInstructions ? \`The following instructions **extra important** as they tell you what you did wrong before and how to fix it
+    \${context.variables.improvedInstructions}
+    \` : ''}
 
     ### Expected Output Format:
     - your response should be in valid json without any other text whatsoever in the response. your response should not include anything besides valid json. your response should only be in the json formats below:

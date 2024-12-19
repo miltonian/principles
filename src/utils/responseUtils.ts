@@ -19,6 +19,7 @@ export const cleanOpenAIResponse = (rawResponseParam: string, preserveNewLines?:
     .replace(/^```javascript\s*/, "")
     .replace(/^```markdown\s*/, "")
     .replace(/```$/, "")
+    .replace(/\\\\`/g, '\\`')
     .trim();
   }
 
@@ -27,6 +28,7 @@ export const cleanOpenAIResponse = (rawResponseParam: string, preserveNewLines?:
     .replace(/^```javascript\s*/, "")
     .replace(/^```markdown\s*/, "")
     .replace(/```$/, "")
+    .replace(/\\\\`/g, '\\`')
     .replace(/\\n/g, "")
     .replace(/\n/g, "")
     .trim();

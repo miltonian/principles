@@ -90,7 +90,7 @@ export const handleAgentGeneration = async (
     // Step 1: Generate agent plan based on user prompt and objective
     // const agents = await getAgentPlan(userPrompt, userObjective);
     const orchestrator = new PromptDecompositionOrchestratorAgent()
-    const agentResponse = await orchestrator.run(userPrompt)
+    const agentResponse = await orchestrator.run(userObjective)
     console.log({agentResponse: JSON.stringify(agentResponse, null, 2)});
     
     const agents = agentResponse.finalBreakdown?.agents ||[]
@@ -201,8 +201,7 @@ You are an **expert agent architect**, tasked with defining a single **autonomou
 ${JSON.stringify(agent, null, 2)}
 
 ## **Overarching User Goal**
-
-"${userPrompt}"
+"${userObjective}"
 
 ---
 
@@ -210,7 +209,7 @@ ${JSON.stringify(agent, null, 2)}
 
 {
   "className": "",          // A concise, PascalCase name for the agent class.
-  "id": "",                 // A unique, kebab-case identifier for the agent.
+  "id": "",                 // A unique, kebab-case identifier for the agent with an identifier that is relevant to the agent's role.
   "name": "",               // A human-readable name for the agent.
   "instructions": "",       // Exhaustive and detailed instructions as per above.
   "primaryAgents": [],      // List of primary agent IDs this agent coordinates with.
@@ -297,6 +296,7 @@ ${JSON.stringify(agent, null, 2)}
 - **Focus**: Stay within your defined subtask and avoid overlapping with other agents.
 - **Collaboration**: Share necessary data with other agents as defined in your dependencies.
 - **Output**: Provide clear, structured outputs that can be used by the SynthesisAgent.
+
 `;
 
       // Update configVariables with the modified instructions
@@ -321,7 +321,7 @@ ${JSON.stringify(agent, null, 2)}
         className,
         id,
         name,
-        instructions: escapeUnescapedBackticks(instructions),
+        instructions: escapeUnescapedBackticks(instructions).replace(/\\\\`/g, '\\`'),
         primaryAgents,
         expectedOutput,
         outputFormat,
@@ -432,6 +432,17 @@ ${JSON.stringify(synthesisAgentOutputFormat, null, 2)}
 - Integrate the information to produce a final result.
 - Ensure the output strictly adheres to the specified output format.
 - Do not include any additional text or explanations outside the JSON format.
+
+## Processing New User Prompts
+
+- When a new user prompt is received, process it according to your specific role.
+- Ensure your output contributes towards achieving the overarching goal: "${overarchingGoal}".
+
+## Guidelines
+
+- **Focus**: Stay within your defined subtask and avoid overlapping with other agents.
+- **Collaboration**: Share necessary data with other agents as defined in your dependencies.
+- **Output**: Provide clear, structured outputs that can be used by the SynthesisAgent.
 `;
 
     const synthesisAgentConfig = {
@@ -498,7 +509,8 @@ ${JSON.stringify(synthesisAgentOutputFormat, null, 2)}
         .map((agent) => agent.id)
         .concat(synthesisAgentConfig.id),
       agentsConfig: agentsConfig, // Pass the updated agentsConfig
-      dependencies: synthesisAgentConfig.dependencies
+      dependencies: synthesisAgentConfig.dependencies,
+      userObjective
     };
 
     // Generate the Orchestrator Agent class code
