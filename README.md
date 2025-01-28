@@ -237,21 +237,45 @@ If you need o1 models but encounter access issues:
 - The iterative and prompt-ready nature of the framework remains effective regardless of the underlying model.
 
 ## Validation and Supporting Evidence
-
+The methodologies underpinning the **Principles Framework** are strongly validated by research studies demonstrating the effectiveness of decomposition-based frameworks. Key findings from these studies provide evidence for the power and utility of the Principles approach:
 ### 1. Dynamic Task Decomposition
+The Principles Framework's focus on breaking down complex goals into their most fundamental components aligns with results from the **TDAG (Dynamic Task Decomposition and Agent Generation)** framework:
 
-Research confirms that dynamic decomposition enhances problem-solving success. Our iterative refinement aligns with these findings, ensuring tasks remain consistently minimal and aligned.
+- **TDAG Results**:
+  - Achieved up to **33% improvement** in success rates on compositional reasoning tasks.
+  - **28.3% increase** in task completion rates in dynamic environments (ALFWorld benchmark).
+  - **27% performance boost** on interactive tasks (WebShop benchmark).
+- **Key Advantages**:
+  - **Dynamic Adaptability**: TDAG dynamically decomposes tasks and generates custom subagents, enhancing adaptability in complex, real-world tasks.
+  - **Error Reduction**: Significant reduction in error rates, particularly in cascading task failures, due to dynamic adjustments and specialized subagents.
+
+These results demonstrate the value of modular decomposition and dynamic agent generation, which are cornerstones of the Principles Framework.
+
+[Reference: TDAG Framework and ItineraryBench](https://arxiv.org/abs/2402.10178)
 
 ### 2. Iterative Problem-Solving and Adaptability
 
-Studies on adaptive, iterative approaches show that refining fundamentals and tasks over multiple passes leads to better, more coherent results. This framework embraces that adaptability, producing final agents you can trust.
+The iterative and adaptive nature of the Principles Framework is reinforced by studies on modular problem-solving systems:
 
-## Limitations and Future Enhancements
+- **Dynamic Role Discovery and Assignment (DRDA)**:
+  - Improved task allocation efficiency by **20%-30%** using dynamic role assignment in multi-agent systems.
+  - **Performance Gains**: Achieved higher win rates in complex scenarios, demonstrating the effectiveness of dynamic role policies and restricted action spaces.
+  - **Key Insights**:
+    - Dynamic role assignment allows agents to adapt to changing environments and tasks.
+    - Role-specific policies enhance learning efficiency by reducing action space complexity.
 
-While now more adaptive, feasible, and exhaustive in output:
-- Further heuristics could refine when to re-check truths vs. re-run decomposition.
-- Additional logging or instrumentation could enhance transparency.
-- Exploring broader integration with retrieval-augmented generation (RAG) or other data sources may further improve the process.
+[Reference: Dynamic Role Discovery and Assignment](https://link.springer.com/content/pdf/10.1007/s40747-023-01071-x.pdf)
+
+- **TASKBENCH**:
+  - Provided insights into LLM limitations and strengths in task automation.
+  - Showed that advanced models like GPT-4 excel in reasoning and parameter prediction, especially in complex tasks requiring tool dependencies.
+  - **Performance Trends**:
+    - Advanced models demonstrated **higher performance** in tasks requiring dynamic reasoning and alignment.
+    - Emphasized the importance of **code pretraining**, **human alignment techniques**, and **instruction fine-tuning** in enhancing task automation capabilities.
+
+[Reference: TASKBENCH](https://arxiv.org/abs/2311.18760)
+
+These studies highlight the effectiveness of dynamic decomposition and iterative problem-solving, which are central to the Principles Framework.
 
 ## Contributing
 
