@@ -38,6 +38,7 @@ describe("emitPackage", () => {
     expect(pkgJson.scripts["run-agents"]).toBe("npm run build && node dist/runtime/main.js");
     expect(pkgJson.scripts["build"]).toBe("tsc && cp src/ontology.json dist/ontology.json");
     expect(pkgJson.dependencies.zod).toBeDefined();
+    expect(pkgJson.devDependencies.typescript).toBeDefined();
 
     const overview = fs.readFileSync(path.join(pkgDir, "Overview.md"), "utf8");
     expect(overview).toContain("cite evidence");           // truths rendered

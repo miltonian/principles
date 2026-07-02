@@ -33,6 +33,7 @@ export function emitPackage(
       version: "1.0.0",
       license: "MIT",
       dependencies: { openai: "^4.70.2", zod: "^3.23.0", dotenv: "^16.4.5" },
+      devDependencies: { typescript: "^5.9.0" },
       scripts: {
         build: "tsc && cp src/ontology.json dist/ontology.json",
         "run-agents": "npm run build && node dist/runtime/main.js",
