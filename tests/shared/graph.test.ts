@@ -32,4 +32,8 @@ describe("topoLevels", () => {
     const levels = topoLevels([{ id: "a", dependsOn: ["ghost"] }]);
     expect(levels).toEqual([["a"]]);
   });
+
+  it("treats a self-dependency as a cycle", () => {
+    expect(topoLevels([{ id: "a", dependsOn: ["a"] }])).toBeNull();
+  });
 });

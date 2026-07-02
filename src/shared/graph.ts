@@ -12,7 +12,7 @@ export function topoLevels(nodes: GraphNode[]): string[][] | null {
   const known = new Set(nodes.map((n) => n.id));
   const level = new Map<string, number>();
   const remaining = new Map(
-    nodes.map((n) => [n.id, n.dependsOn.filter((d) => known.has(d) && d !== n.id)])
+    nodes.map((n) => [n.id, n.dependsOn.filter((d) => known.has(d))])
   );
 
   let progressed = true;
