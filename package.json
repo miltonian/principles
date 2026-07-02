@@ -21,6 +21,8 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "generate-agents": "yarn build && node dist/scripts/agentGenerator.js"
+    "generate-agents": "yarn build && node dist/scripts/agentGenerator.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }
