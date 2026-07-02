@@ -32,6 +32,8 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       string,
       unknown
     >;
+    // The Agent SDK CLI silently ignores outputFormat when a $schema meta-key is present (verified live).
+    delete jsonSchema["$schema"];
 
     const stream = queryFn({
       prompt,
@@ -55,6 +57,11 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       if (message.subtype === "success" && message.structured_output != null) {
         // Re-validate: the Llm contract promises a zod-validated T.
         return schema.parse(message.structured_output);
+      }
+      if (message.subtype === "success") {
+        throw new Error(
+          `Claude Agent SDK returned success but no structured_output for schema "${schemaName}" — outputFormat was likely ignored`
+        );
       }
       const detail = message.errors ? `: ${JSON.stringify(message.errors)}` : "";
       throw new Error(

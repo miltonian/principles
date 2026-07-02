@@ -88,4 +88,41 @@ describe("makeClaudeAgentSdkLlm", () => {
     await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
     expect(capture.args.options.model).toBe("claude-opus-4-8");
   });
+
+  it("strips the $schema key from the JSON schema passed to the SDK", async () => {
+    const capture: { args?: any } = {};
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuery([success({ a: "x" })], capture),
+    });
+    await llm({
+      prompt: "q",
+      schema: z.object({ a: z.string() }),
+      schemaName: "test",
+    });
+    expect(capture.args.options.outputFormat.schema.$schema).toBeUndefined();
+    expect(capture.args.options.outputFormat.schema.properties).toBeDefined();
+  });
+
+  it("names the missing structured output on success-without-output", async () => {
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuery([{ type: "result", subtype: "success" }]),
+    });
+    await expect(
+      llm({
+        prompt: "q",
+        schema: z.object({ a: z.string() }),
+        schemaName: "smoke",
+      })
+    ).rejects.toThrow(/structured.{0,10}output/i);
+    // Verify the schema name appears in the error message
+    try {
+      await llm({
+        prompt: "q",
+        schema: z.object({ a: z.string() }),
+        schemaName: "smoke",
+      });
+    } catch (e) {
+      expect((e as Error).message).toMatch(/smoke/);
+    }
+  });
 });
