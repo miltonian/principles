@@ -38,6 +38,9 @@ describe("emitPackage", () => {
     expect(pkgJson.scripts["run-agents"]).toBe("npm run build && node dist/runtime/main.js");
     expect(pkgJson.scripts["build"]).toBe("tsc && cp src/ontology.json dist/ontology.json");
     expect(pkgJson.dependencies.zod).toBeDefined();
+    expect(pkgJson.dependencies["@anthropic-ai/claude-agent-sdk"]).toBeDefined();
+    expect(pkgJson.dependencies["zod-to-json-schema"]).toBeDefined();
+    expect(pkgJson.dependencies.openai).toBeUndefined();
     expect(pkgJson.devDependencies.typescript).toBeDefined();
 
     const overview = fs.readFileSync(path.join(pkgDir, "Overview.md"), "utf8");

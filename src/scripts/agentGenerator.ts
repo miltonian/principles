@@ -1,8 +1,7 @@
 import path from "path";
 import dotenv from "dotenv";
 dotenv.config();
-import OpenAI from "openai";
-import { makeOpenAiLlm } from "../llm/gateway";
+import { makeClaudeAgentSdkLlm } from "../llm/claudeGateway";
 import { generateOntology } from "../core/pipeline";
 import { emitPackage } from "../core/emit";
 
@@ -12,13 +11,11 @@ const main = async () => {
     console.error('Usage: yarn generate-agents "<goal or problem statement>"');
     process.exit(1);
   }
-  const token = process.env.OPEN_AI_TOKEN;
-  if (!token) {
-    console.error("OPEN_AI_TOKEN is not set.");
-    process.exit(1);
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn("ANTHROPIC_API_KEY is not set — relying on local Claude Code credentials if available.");
   }
 
-  const llm = makeOpenAiLlm(new OpenAI({ apiKey: token }));
+  const llm = makeClaudeAgentSdkLlm();
   console.log("Deriving and vetting truths, decomposing, generating agent specs...");
   const report = await generateOntology(llm, userPrompt);
 

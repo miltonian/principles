@@ -62,7 +62,7 @@ This framework was heavily influenced by the following:
 
 - **Node.js**: Version 18 or higher
 - **npm** or **Yarn**: npm v6+ or Yarn v1.22+
-- **OpenAI API Key**: Required for GPT models
+- **Anthropic API key (`ANTHROPIC_API_KEY`)**: Required to call Claude. All model calls run on Claude Opus 4.8 via the Claude Agent SDK.
 
 ### Steps
 
@@ -83,9 +83,9 @@ This framework was heavily influenced by the following:
 
 3. **Set Up Environment Variables**
 
-   Create a `.env` file in the root directory and add your OpenAI API key:
+   Create a `.env` file in the root directory and add your Anthropic API key:
    ```env
-   OPEN_AI_TOKEN=your-openai-api-key
+   ANTHROPIC_API_KEY=your-anthropic-api-key
    ```
 
 4. **Check `.env` in `.gitignore`**

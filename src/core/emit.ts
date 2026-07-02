@@ -26,13 +26,21 @@ export function emitPackage(
   }
   fs.copyFileSync(path.join(baseDir, "tsconfig.json"), path.join(pkgDir, "tsconfig.json"));
 
+  // Mirror dependency versions from the generator's own package.json so
+  // emitted packages can never drift from what the generator itself runs.
+  const rootPkg = fs.readJsonSync(path.join(baseDir, "package.json"));
+  const mirrored = ["@anthropic-ai/claude-agent-sdk", "zod", "zod-to-json-schema", "dotenv"];
+  const dependencies = Object.fromEntries(
+    mirrored.map((name) => [name, rootPkg.dependencies[name]])
+  );
+
   fs.writeJsonSync(
     path.join(pkgDir, "package.json"),
     {
       name: packageName,
       version: "1.0.0",
       license: "MIT",
-      dependencies: { openai: "^4.70.2", zod: "^3.23.0", dotenv: "^16.4.5" },
+      dependencies,
       devDependencies: { typescript: "^5.9.0" },
       scripts: {
         build: "tsc && cp src/ontology.json dist/ontology.json",

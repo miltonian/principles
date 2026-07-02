@@ -1,12 +1,10 @@
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-import OpenAI from "openai";
-import { makeOpenAiLlm } from "../llm/gateway";
+dotenv.config();
+import { makeClaudeAgentSdkLlm } from "../llm/claudeGateway";
 import { Ontology } from "../shared/types";
 import { runOntology } from "./orchestrator";
-
-dotenv.config();
 
 async function main() {
   const prompt = process.argv.slice(2).join(" ");
@@ -14,15 +12,13 @@ async function main() {
     console.error('Usage: npm run run-agents "<your prompt>"');
     process.exit(1);
   }
-  const token = process.env.OPEN_AI_TOKEN;
-  if (!token) {
-    console.error("OPEN_AI_TOKEN is not set.");
-    process.exit(1);
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn("ANTHROPIC_API_KEY is not set — relying on local Claude Code credentials if available.");
   }
 
   const ontologyPath = path.join(__dirname, "..", "ontology.json");
   const ontology: Ontology = JSON.parse(fs.readFileSync(ontologyPath, "utf8"));
-  const llm = makeOpenAiLlm(new OpenAI({ apiKey: token }));
+  const llm = makeClaudeAgentSdkLlm();
 
   const result = await runOntology(llm, ontology, prompt);
   if (result.escaped) {
