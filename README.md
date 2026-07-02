@@ -20,7 +20,6 @@ This framework was heavily influenced by the following:
 - [Principles Framework](#principles-framework)
   - [Influences](#influences)
   - [Table of Contents](#table-of-contents)
-  - [Recent Enhancements](#recent-enhancements)
   - [Features](#features)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
@@ -29,10 +28,6 @@ This framework was heavily influenced by the following:
   - [Usage](#usage)
     - [Generating Agents](#generating-agents)
     - [Running the Agents](#running-the-agents)
-  - [Architecture Overview](#architecture-overview)
-    - [Agents and Their Roles](#agents-and-their-roles)
-    - [Orchestrator Agent and Agent Coordination](#orchestrator-agent-and-agent-coordination)
-    - [Agent Registry and Dynamic Agent Loading](#agent-registry-and-dynamic-agent-loading)
   - [How It Works](#how-it-works)
   - [Detailed Workflow of Agent Generation and Execution](#detailed-workflow-of-agent-generation-and-execution)
   - [Advanced Features and Functionality](#advanced-features-and-functionality)
@@ -43,28 +38,13 @@ This framework was heavily influenced by the following:
     - [Step 2: Use the Agents to Process Prompts](#step-2-use-the-agents-to-process-prompts)
   - [Iterative Refinement and Integration](#iterative-refinement-and-integration)
   - [Troubleshooting](#troubleshooting)
-    - [1. Circular Dependencies When Running Agents](#1-circular-dependencies-when-running-agents)
-    - [2. Importance of First Principles Thinking](#2-importance-of-first-principles-thinking)
-    - [3. Accessing o1 Models on OpenAI](#3-accessing-o1-models-on-openai)
+    - [Importance of First Principles Thinking](#importance-of-first-principles-thinking)
   - [Validation and Supporting Evidence](#validation-and-supporting-evidence)
     - [1. Dynamic Task Decomposition](#1-dynamic-task-decomposition)
     - [2. Iterative Problem-Solving and Adaptability](#2-iterative-problem-solving-and-adaptability)
   - [Limitations and Future Enhancements](#limitations-and-future-enhancements)
   - [Contributing](#contributing)
   - [License](#license)
-
-## Recent Enhancements
-
-- **Iterative Refinement of Fundamental Truths and Subtasks**:  
-  The framework can now iteratively refine both the fundamental truths and the subtasks. If initial truths prove insufficient or if subtasks are not minimal or feasible, it can re-derive truths or re-decompose tasks as needed. This ensures that the final solution is always built upon stable, minimal, and actionable components.
-
-- **Feasibility Checks for Subtasks**:  
-  The decomposition logic now ensures that subtasks remain within the capabilities of a text-based assistant. Instead of producing unfeasible instructions (e.g., external physical actions), it focuses on tasks the agents can realistically handle, such as generating summaries, analyses, or structured proposals.
-
-- **Comprehensive Agent Descriptions for Prompt Generation**:  
-  The final integrated output now includes exhaustively detailed agent descriptions. Each agent specification is rich in context, instructions, constraints, and examples—enabling you to directly transform these final descriptions into robust prompts for creating or configuring agents in your downstream workflows.
-
-These enhancements maintain and build upon the original core idea of using first principles reasoning to design specialized agents, while ensuring an adaptive, iterative refinement process and producing final outputs that are both minimal and extremely prompt-ready.
 
 ## Features
 
@@ -80,7 +60,7 @@ These enhancements maintain and build upon the original core idea of using first
 
 ### Prerequisites
 
-- **Node.js**: Version 14 or higher
+- **Node.js**: Version 18 or higher
 - **npm** or **Yarn**: npm v6+ or Yarn v1.22+
 - **OpenAI API Key**: Required for GPT models
 
@@ -141,26 +121,25 @@ npm run run-agents "How should these agents adapt if the project's constraints c
 
 The agents respond with results grounded in refined truths and minimal subtasks. The final breakdown includes extensive agent descriptions, enabling you to directly craft prompts for new agents.
 
-## Architecture Overview
-
-### Agents and Their Roles
-
-Within Principles, agents address distinct aspects of your goal’s decomposition. While the framework uses a variety of conceptual agents (such as those analyzing the problem, decomposing tasks, designing communication strategies, and generating agent designs), the newly introduced iterative refinement logic ensures that by the time you have your final agents, every fundamental assumption and subtask has been verified and adjusted if necessary.
-
-### Orchestrator Agent and Agent Coordination
-
-The **OrchestratorAgent** orchestrates execution, resolves dependencies, and manages iterative refinements. If necessary, it re-derives truths or re-decomposes tasks until everything is minimal and aligned.
-
-### Agent Registry and Dynamic Agent Loading
-
-The registry allows dynamic loading of agents, enabling flexible scaling and customization. With iterative refinement ensuring stable final outputs, you can trust that what’s loaded is coherent and ready for use.
-
 ## How It Works
 
-1. **Provide a Goal**: Supply a clear objective or problem statement.
-2. **First Principles Reasoning**: Identify fundamental truths and minimal subtasks.
-3. **Iterative Refinement**: If something’s off, re-check truths or tasks to achieve stable, minimal results.
-4. **Finalize Agents**: Produce a final set of agents, thoroughly documented for immediate prompt generation or integration.
+1. **Typed truths**: The goal is decomposed into typed, falsifiable claims — facts,
+   assumptions, constraints, definitions. Types are commitments the system checks.
+2. **Adversarial vetting**: A skeptic pass attacks every truth. Survivors are kept,
+   unverifiable ones are demoted to explicit assumptions (surfaced to you), broken
+   ones are rejected with the attack recorded.
+3. **Decomposition with citations**: Every subtask must cite the truths it serves.
+   Coverage is computed in code: an uncited truth is a missed requirement; a
+   subtask citing nothing is scope creep.
+4. **Refinement, not re-rolls**: The decomposition is revised against the judge's
+   evidence-backed critique until nothing new fails (fixed point), the same
+   criterion fails twice (escalate — looping again would be a re-roll), or the
+   iteration budget runs out.
+5. **Data, not codegen**: The output package is an `ontology.json` plus a generic
+   runtime. At run time, a triage step checks whether your prompt fits the frame
+   (and answers directly if it doesn't), plans which agents to run, executes them
+   in dependency levels over a shared blackboard, judges every output against a
+   rubric derived from the truths, and synthesizes the final answer.
 
 ## Detailed Workflow of Agent Generation and Execution
 
@@ -218,23 +197,11 @@ Iterative refinement ensures that the fundamental truths and subtasks aren’t j
 
 ## Troubleshooting
 
-### 1. Circular Dependencies When Running Agents
-
-If you encounter circular dependencies:
-- Follow the existing guidelines to identify and remove cycles.
-- The iterative refinement may help stabilize the order, but manual edits in `agentsConfig.ts` might still be required.
-
-### 2. Importance of First Principles Thinking
+### Importance of First Principles Thinking
 
 First principles drive every step:
 - Decompose your goal into undeniable truths and minimal tasks.
 - Iterative refinement ensures these fundamentals stay correct and aligned, improving outcomes and reducing complexity.
-
-### 3. Accessing o1 Models on OpenAI
-
-If you need o1 models but encounter access issues:
-- Refer to the provided instructions on contacting support or substituting another model.
-- The iterative and prompt-ready nature of the framework remains effective regardless of the underlying model.
 
 ## Validation and Supporting Evidence
 The methodologies underpinning the **Principles Framework** are strongly validated by research studies demonstrating the effectiveness of decomposition-based frameworks. Key findings from these studies provide evidence for the power and utility of the Principles approach:
