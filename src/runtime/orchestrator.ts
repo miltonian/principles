@@ -15,6 +15,9 @@ export interface RunResult {
   planned: string[];
   escaped: boolean;
   board: BlackboardEntry[];
+  // Ids of agents whose refine loop did not converge (escalated/exhausted): their
+  // board entries are retained but were never rubric-verified.
+  unverified: string[];
 }
 
 export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: string): Promise<RunResult> {
@@ -28,13 +31,14 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
       schema: AnswerSchema,
       schemaName: "direct_answer",
     });
-    return { answer: direct.answer, planned: [], escaped: true, board: [] };
+    return { answer: direct.answer, planned: [], escaped: true, board: [], unverified: [] };
   }
 
   const board = new Blackboard();
   const levels = topoLevels(triage.agents.map((a) => ({ id: a.id, dependsOn: a.dependsOn })));
   if (!levels) throw new Error("Circular dependency among planned agents.");
   const specById = new Map(triage.agents.map((a) => [a.id, a]));
+  const unverified: string[] = [];
 
   for (const level of levels) {
     const outputs = await Promise.all(
@@ -56,12 +60,13 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
             }),
           { maxIterations: 3 }
         );
-        return { spec, output: outcome.result };
+        return { spec, output: outcome.result, converged: outcome.status === "converged" };
       })
     );
     // Write after the level completes so same-level agents don't race on reads.
-    for (const { spec, output } of outputs) {
+    for (const { spec, output, converged } of outputs) {
       board.add({ agentId: spec.id, subtask: spec.instructions, notes: output.notes, result: output.result });
+      if (!converged) unverified.push(spec.id);
     }
   }
 
@@ -69,6 +74,14 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
     system: [
       "You synthesize the final answer from the work on the blackboard.",
       "Use everything: results AND notes. Preserve nuance; surface disagreements between agents instead of papering over them.",
+      ...(unverified.length > 0
+        ? [
+            ``,
+            `## Unverified contributions`,
+            `The following agents never converged on a rubric-passing output: ${unverified.join(", ")}.`,
+            `Treat their contributions with caution: do not present them as verified fact, and surface the uncertainty to the user instead of papering over it.`,
+          ]
+        : []),
     ].join("\n"),
     prompt: [
       `## User prompt`,
@@ -86,5 +99,6 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
     planned: triage.agents.map((a) => a.id),
     escaped: false,
     board: board.all(),
+    unverified,
   };
 }

@@ -36,6 +36,24 @@ const scriptedLlm = (log: string[]): Llm =>
     }
   }) as unknown as Llm;
 
+/** Scripted variant where the rubric judge always fails — no agent ever converges. */
+const scriptedLlmAlwaysFailingRubric = (log: string[]): Llm =>
+  (async <T>(req: LlmRequest<T>) => {
+    log.push(req.schemaName);
+    switch (req.schemaName) {
+      case "triage_plan":
+        return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"] };
+      case "agent_output":
+        return { notes: "n", result: "agent deliverable" };
+      case "rubric_verdicts":
+        return { verdicts: [{ criterionId: "o-responsive", pass: false, evidence: "does not address the prompt" }] };
+      case "synthesis":
+        return { answer: "final synthesized answer" };
+      default:
+        throw new Error(`unexpected schema ${req.schemaName}`);
+    }
+  }) as unknown as Llm;
+
 describe("runOntology", () => {
   it("plans, executes agents in dependency order, and synthesizes from the board", async () => {
     const log: string[] = [];
@@ -44,6 +62,7 @@ describe("runOntology", () => {
     expect(result.answer).toBe("final synthesized answer");
     expect(result.planned).toEqual(["agent-s1", "agent-s2"]);
     expect(result.board).toHaveLength(2);
+    expect(result.unverified).toEqual([]);
     expect(log[0]).toBe("triage_plan");
     expect(log[log.length - 1]).toBe("synthesis");
   });
@@ -59,5 +78,14 @@ describe("runOntology", () => {
     expect(result.escaped).toBe(true);
     expect(result.answer).toBe("direct answer");
     expect(result.board).toEqual([]);
+  });
+
+  it("flags agents that never converge as unverified, but still keeps and synthesizes their output", async () => {
+    const log: string[] = [];
+    const result = await runOntology(scriptedLlmAlwaysFailingRubric(log), ontology, "is this claim credible?");
+    expect(result.answer).toBe("final synthesized answer");
+    expect(result.unverified).toEqual(["agent-s1", "agent-s2"]);
+    expect(result.board).toHaveLength(2);
+    expect(result.board.map((e) => e.agentId)).toEqual(["agent-s1", "agent-s2"]);
   });
 });
