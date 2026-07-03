@@ -13,6 +13,17 @@ export interface ClaudeGatewayOptions {
 const DEFAULT_SYSTEM =
   "You are a precise assistant. Produce only the requested structured data.";
 
+// Total attempts (not extra retries) at the whole query before giving up.
+// Live testing shows the Agent SDK CLI's structured-output finalize step
+// occasionally flakes — a success result arrives with `structured_output`
+// undefined, the stream ends with no result message at all, or the CLI
+// subprocess throws (observed: "Claude Code process exited with code 1").
+// Identical retried calls succeed, so we retry the whole query bounded.
+const MAX_ATTEMPTS = 3;
+
+/** Thrown for outcomes that must propagate immediately, never retried. */
+class NonRetryableSdkError extends Error {}
+
 /**
  * Llm implementation backed by the Claude Agent SDK. Every call is a
  * single-turn, tool-less, structured-output query — the SDK's agent loop is
@@ -35,39 +46,73 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
     // The Agent SDK CLI silently ignores outputFormat when a $schema meta-key is present (verified live).
     delete jsonSchema["$schema"];
 
-    const stream = queryFn({
-      prompt,
-      options: {
-        model,
-        systemPrompt: system ?? DEFAULT_SYSTEM,
-        // Belt-and-suspenders tool disablement: `allowedTools: []` only
-        // means "auto-allow nothing" (per the installed SDK's own docs,
-        // it does not restrict which tools are *available*). `tools: []`
-        // is the field that actually disables the built-in toolset — pure
-        // text transform, no tools, no file access.
-        allowedTools: [],
-        tools: [],
-        maxTurns: 1,
-        outputFormat: { type: "json_schema", schema: jsonSchema },
-      },
-    });
+    const runQuery = (): AsyncIterable<any> =>
+      queryFn({
+        prompt,
+        options: {
+          model,
+          systemPrompt: system ?? DEFAULT_SYSTEM,
+          // Belt-and-suspenders tool disablement: `allowedTools: []` only
+          // means "auto-allow nothing" (per the installed SDK's own docs,
+          // it does not restrict which tools are *available*). `tools: []`
+          // is the field that actually disables the built-in toolset — pure
+          // text transform, no tools, no file access.
+          allowedTools: [],
+          tools: [],
+          maxTurns: 1,
+          outputFormat: { type: "json_schema", schema: jsonSchema },
+        },
+      }) as AsyncIterable<any>;
 
-    for await (const message of stream as AsyncIterable<any>) {
-      if (message.type !== "result") continue;
-      if (message.subtype === "success" && message.structured_output != null) {
-        // Re-validate: the Llm contract promises a zod-validated T.
-        return schema.parse(message.structured_output);
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      let structuredOutput: unknown;
+      let haveOutput = false;
+
+      try {
+        for await (const message of runQuery()) {
+          if (message.type !== "result") continue;
+          if (message.subtype === "success" && message.structured_output != null) {
+            structuredOutput = message.structured_output;
+            haveOutput = true;
+            break;
+          }
+          if (message.subtype === "success") {
+            // Flake: success but the finalize step dropped structured_output.
+            lastError = new Error(
+              `Claude Agent SDK returned success but no structured_output for schema "${schemaName}" — outputFormat was likely ignored`
+            );
+            break;
+          }
+          // Non-success subtype: the SDK already retried internally — surface
+          // immediately, do not retry the whole query on top of that.
+          const detail = message.errors ? `: ${JSON.stringify(message.errors)}` : "";
+          throw new NonRetryableSdkError(
+            `Claude Agent SDK returned ${message.subtype} for schema "${schemaName}"${detail}`
+          );
+        }
+        if (!haveOutput && lastError === undefined) {
+          // Flake: stream ended with no result message at all.
+          lastError = new Error(
+            `Claude Agent SDK produced no result message for schema "${schemaName}"`
+          );
+        }
+      } catch (err) {
+        if (err instanceof NonRetryableSdkError) throw err;
+        // Flake: queryFn/stream threw (observed: "Claude Code process exited
+        // with code 1").
+        lastError = err instanceof Error ? err : new Error(String(err));
       }
-      if (message.subtype === "success") {
-        throw new Error(
-          `Claude Agent SDK returned success but no structured_output for schema "${schemaName}" — outputFormat was likely ignored`
-        );
+
+      if (haveOutput) {
+        // Re-validate outside the retry try/catch: a zod failure here means
+        // the SDK validated but our zod disagrees — a real error, propagated
+        // immediately, never retried.
+        return schema.parse(structuredOutput);
       }
-      const detail = message.errors ? `: ${JSON.stringify(message.errors)}` : "";
-      throw new Error(
-        `Claude Agent SDK returned ${message.subtype} for schema "${schemaName}"${detail}`
-      );
     }
-    throw new Error(`Claude Agent SDK produced no result message for schema "${schemaName}"`);
+
+    throw new Error(`after ${MAX_ATTEMPTS} attempts, ${lastError!.message}`);
   };
 }

@@ -17,6 +17,43 @@ const success = (structured: unknown) => ({
   structured_output: structured,
 });
 
+/**
+ * Fake query() that returns a different message sequence on each successive
+ * call — for exercising the whole-query retry loop. Once `sequences` is
+ * exhausted, the last sequence repeats.
+ */
+const fakeQuerySequence = (sequences: unknown[][], capture?: { calls: number }) => {
+  let call = 0;
+  return ((_args: any) => {
+    const seq = sequences[Math.min(call, sequences.length - 1)];
+    call++;
+    if (capture) capture.calls = call;
+    return (async function* () {
+      for (const m of seq) yield m;
+    })();
+  }) as any;
+};
+
+/**
+ * Fake query() whose returned stream THROWS during iteration on the first
+ * call (simulating "Claude Code process exited with code 1"), then yields
+ * the given messages on subsequent calls.
+ */
+const fakeQueryThrowsOnFirstCall = (messages: unknown[], capture?: { calls: number }) => {
+  let call = 0;
+  return ((_args: any) => {
+    call++;
+    const thisCall = call;
+    if (capture) capture.calls = call;
+    return (async function* () {
+      if (thisCall === 1) {
+        throw new Error("Claude Code process exited with code 1");
+      }
+      for (const m of messages) yield m;
+    })();
+  }) as any;
+};
+
 describe("makeClaudeAgentSdkLlm", () => {
   it("returns the validated structured output", async () => {
     const llm = makeClaudeAgentSdkLlm({
@@ -124,5 +161,79 @@ describe("makeClaudeAgentSdkLlm", () => {
     } catch (e) {
       expect((e as Error).message).toMatch(/smoke/);
     }
+  });
+
+  it("retries a success-without-output flake, succeeding on the 3rd attempt", async () => {
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuerySequence(
+        [
+          [{ type: "result", subtype: "success" }],
+          [{ type: "result", subtype: "success" }],
+          [success({ a: "x" })],
+        ],
+        capture
+      ),
+    });
+    const result = await llm({
+      prompt: "q",
+      schema: z.object({ a: z.string() }),
+      schemaName: "t",
+    });
+    expect(result).toEqual({ a: "x" });
+    expect(capture.calls).toBe(3);
+  });
+
+  it("retries when the query stream throws (subprocess crash), succeeding on the 2nd attempt", async () => {
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQueryThrowsOnFirstCall([success({ a: "x" })], capture),
+    });
+    const result = await llm({
+      prompt: "q",
+      schema: z.object({ a: z.string() }),
+      schemaName: "t",
+    });
+    expect(result).toEqual({ a: "x" });
+    expect(capture.calls).toBe(2);
+  });
+
+  it("gives up after MAX_ATTEMPTS (3) when structured_output never arrives", async () => {
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuerySequence([[{ type: "result", subtype: "success" }]], capture),
+    });
+    let error: Error | undefined;
+    try {
+      await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
+    } catch (e) {
+      error = e as Error;
+    }
+    expect(error).toBeDefined();
+    expect(error!.message).toMatch(/after 3 attempts/);
+    expect(error!.message).toMatch(/structured_output|structured output/i);
+    expect(capture.calls).toBe(3);
+  });
+
+  it("does not retry a non-success result subtype — the SDK already retried internally", async () => {
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuerySequence(
+        [
+          [
+            {
+              type: "result",
+              subtype: "error_max_structured_output_retries",
+              errors: [{ message: "schema mismatch" }],
+            },
+          ],
+        ],
+        capture
+      ),
+    });
+    await expect(
+      llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })
+    ).rejects.toThrow(/error_max_structured_output_retries/);
+    expect(capture.calls).toBe(1);
   });
 });
