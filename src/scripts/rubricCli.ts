@@ -35,6 +35,9 @@ const main = async () => {
   console.log(`\nGradeability check: ${rubric.gradeability.status} after ${rubric.gradeability.iterations} iteration(s).`);
   if (rubric.gradeability.status !== "converged") {
     console.log("  The rubric did NOT fully pass its own meta-rubric — review it before trusting it.");
+    if (rubric.gradeability.stuckOn?.length) {
+      console.log(`  Stuck on meta-criteria: ${rubric.gradeability.stuckOn.join(", ")}`);
+    }
   }
 
   const baseDir = path.join(__dirname, "..", "..");
