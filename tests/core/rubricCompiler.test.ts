@@ -211,6 +211,7 @@ describe("compileRubric", () => {
                 { criterionId: "d-minimal", pass: true, evidence: "atomic" },
                 { criterionId: "d-feasible", pass: true, evidence: "text-only" },
                 { criterionId: "d-complete", pass: true, evidence: "covers objective" },
+                { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
                 { criterionId: "d-t1", pass: true, evidence: "constraint carried" },
               ] };
         case "rubric_guidance":

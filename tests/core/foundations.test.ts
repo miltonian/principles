@@ -18,6 +18,7 @@ const scriptedLlm = (): Llm =>
             { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
             { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
             { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+            { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
             { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
           ],
         };

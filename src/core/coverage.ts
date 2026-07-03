@@ -24,6 +24,12 @@ export function hasCycle(subtasks: Subtask[]): boolean {
   return topoLevels(subtasks) === null;
 }
 
+export function unjustifiedWeb(subtasks: Subtask[]): string[] {
+  return subtasks
+    .filter((s) => s.needsWeb === true && !(s.webJustification ?? "").trim())
+    .map((s) => s.id);
+}
+
 const verdict = (criterionId: string, offenders: string[], passMsg: string) => ({
   criterionId,
   pass: offenders.length === 0,
@@ -42,6 +48,7 @@ export function coverageCritique(truths: Truth[], subtasks: Subtask[]): Critique
       verdict("cov-unknown-citations", unknownCitations(truths, subtasks), "all citations resolve"),
       verdict("cov-unknown-deps", unknownDependencies(subtasks), "all dependencies resolve"),
       verdict("cov-cycle", hasCycle(subtasks) ? ["dependency-cycle"] : [], "dependency graph is acyclic"),
+      verdict("cov-web-justified", unjustifiedWeb(subtasks), "every web request carries a justification"),
     ],
   };
 }
