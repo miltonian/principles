@@ -1,0 +1,169 @@
+{
+  "objective": "review a code change (presented as a unified git diff) to the Principles framework repository for violations of the repo's invariants, untested behavior changes, and unjustified complexity",
+  "criteria": [
+    {
+      "id": "c-responsive",
+      "source": "generic",
+      "description": "The deliverable directly addresses the stated objective — not a generic treatment near the topic.",
+      "evidenceGuidance": "The deliverable must be an actual review of the specific supplied git diff — it references the concrete files/hunks in that diff by name, not a generic essay about code review or about the Principles framework. PASS requires: (1) explicit anchoring to the diff's real content (file paths, function/schema names, line ranges from the diff), and (2) output framed as a violation review covering the stated objective (invariant violations, untested behavior changes, unjustified complexity). FAIL if it discusses code review in the abstract, reviews a different artifact, or never cites specifics traceable to the provided diff."
+    },
+    {
+      "id": "c-grounded",
+      "source": "generic",
+      "description": "Claims in the deliverable are grounded in provided material or clearly flagged as uncertain; nothing is fabricated.",
+      "evidenceGuidance": "Every substantive claim (e.g., 'this import violates the gateway invariant', 'this behavior is untested') must be tied to a citable location in the supplied diff (file + hunk/line) or to a named CLAUDE.md invariant. PASS requires findings quote or paraphrase actual diff lines that exist in the input. FAIL if the review invents files, imports, functions, tests, or diff content not present in the input, asserts violations with no diff citation, or states conclusions about code it cannot see without flagging that uncertainty. Any hedged/uncertain claim must be explicitly marked as such."
+    },
+    {
+      "id": "c-s1",
+      "source": "subtask",
+      "subtaskId": "s1",
+      "description": "The deliverable adequately addresses: Enumerate every changed file and hunk in the supplied unified git diff. Produce a plain structured index: for each file, list its hunks with their line ranges and add/remove markers. Do not yet interpret meaning — only catalog what regions changed.",
+      "evidenceGuidance": "Look for a structured, non-interpretive index: every changed file listed, and under each file its hunks with line ranges (e.g., @@ -a,b +c,d @@) and add/remove indicators. PASS requires the catalog to be complete relative to the diff (no changed file omitted) and to stay descriptive — no meaning/impact assigned yet. FAIL if it jumps straight to interpretation, omits files/hunks present in the diff, or lacks line-range/marker detail."
+    },
+    {
+      "id": "c-s2",
+      "source": "subtask",
+      "subtaskId": "s2",
+      "description": "The deliverable adequately addresses: For each hunk in the change index, state the concrete behavior or structure being changed: added/removed/modified logic, function/type signatures, schema definitions, and literal strings. Output one description per hunk.",
+      "evidenceGuidance": "For each hunk cataloged, there must be a concrete statement of what changed: added/removed/modified logic, function or type signatures, schema definitions, and literal string changes. PASS requires one description per hunk that names the specific construct (e.g., 'added param X to function Y', 'removed field Z from schema'). FAIL if descriptions are vague ('various edits'), collapse multiple hunks without distinguishing them, or omit hunks that appear in the index."
+    },
+    {
+      "id": "c-s3",
+      "source": "subtask",
+      "subtaskId": "s3",
+      "description": "The deliverable adequately addresses: Verify diff integrity: inspect each hunk's context lines and headers to flag any hunk that appears truncated, malformed, or would not apply cleanly against the current repository HEAD. Report whether the assumption of a complete, cleanly-applying diff holds.",
+      "evidenceGuidance": "Look for an explicit diff-integrity check: inspection of context lines and hunk headers to flag truncation, malformation, or hunks that may not apply cleanly at HEAD, plus a stated conclusion on whether the complete/clean-apply assumption holds. PASS requires either concrete flagged hunks with reasons OR an affirmative 'diff appears complete and cleanly-applying' backed by reference to headers/context lines. FAIL if integrity is never assessed or is asserted without inspecting the diff structure."
+    },
+    {
+      "id": "c-s4",
+      "source": "subtask",
+      "subtaskId": "s4",
+      "description": "The deliverable adequately addresses: Check the single-LLM-gateway invariant only: determine whether any changed code imports '@anthropic-ai/claude-agent-sdk' outside src/llm/claudeGateway.ts, adds a raw-API client (@anthropic-ai/sdk, openai), or bypasses the Llm gateway type. Report upheld/violated with diff evidence.",
+      "evidenceGuidance": "Look for a dedicated single-LLM-gateway check with an explicit upheld/violated verdict. It must specifically address: any import of '@anthropic-ai/claude-agent-sdk' outside src/llm/claudeGateway.ts, any added raw-API client (@anthropic-ai/sdk, openai), and any bypass of the Llm gateway type. PASS requires the verdict to cite diff evidence (or explicitly note no relevant changes). FAIL if this invariant is not evaluated on its own or the verdict lacks diff grounding."
+    },
+    {
+      "id": "c-s5",
+      "source": "subtask",
+      "subtaskId": "s5",
+      "description": "The deliverable adequately addresses: Check the emitted-package self-containment invariant only: determine whether changes to src/shared/, src/llm/, or src/runtime/ introduce imports from src/core/ or src/scripts/, and whether any new dependency they use is missing from the mirrored-deps list in src/core/emit.ts. Report upheld/violated with diff evidence.",
+      "evidenceGuidance": "Look for a dedicated emitted-package self-containment check with an explicit upheld/violated verdict. It must specifically test whether changes under src/shared/, src/llm/, or src/runtime/ introduce imports from src/core/ or src/scripts/, and whether any new dependency they use is absent from the mirrored-deps list in src/core/emit.ts. PASS requires diff-cited reasoning (or explicit note that none of these dirs changed). FAIL if the check is merged away, generic, or unsupported by diff evidence."
+    },
+    {
+      "id": "c-s6",
+      "source": "subtask",
+      "subtaskId": "s6",
+      "description": "The deliverable adequately addresses: Check the structured-output-safe schema invariant only: determine whether any changed schema introduces open objects (missing additionalProperties:false), recursion, numeric/string constraints, or lets a $schema meta-key through the gateway. Report upheld/violated with diff evidence.",
+      "evidenceGuidance": "Look for a dedicated structured-output-safe schema check with an explicit upheld/violated verdict addressing: open objects (missing additionalProperties:false), recursion, numeric/string constraints, and any $schema meta-key passing through the gateway. PASS requires the verdict to point at changed schema code in the diff (or state no schemas changed). FAIL if schema safety is not evaluated separately or the conclusion is asserted without citing the relevant hunk."
+    },
+    {
+      "id": "c-s7",
+      "source": "subtask",
+      "subtaskId": "s7",
+      "description": "The deliverable adequately addresses: Check the falsifiable-mechanisms invariant only: determine whether changes weaken judges' evidence requirement (src/shared/judge.ts), break the refine loop's critique-feedback/escalation behavior (src/shared/refine.ts), or allow non-converged agent output to skip RunResult.unverified. Report upheld/violated with diff evidence.",
+      "evidenceGuidance": "Look for a dedicated falsifiable-mechanisms check with an explicit upheld/violated verdict addressing: weakening of the judges' evidence requirement (src/shared/judge.ts), breakage of the refine loop's critique-feedback/escalation (src/shared/refine.ts), and any path letting non-converged agent output skip RunResult.unverified. PASS requires diff-cited reasoning (or explicit note these files/behaviors are untouched). FAIL if this invariant is not evaluated on its own or lacks evidence."
+    },
+    {
+      "id": "c-s8",
+      "source": "subtask",
+      "subtaskId": "s8",
+      "description": "The deliverable adequately addresses: Scan the described changes for any rename, deletion, or alteration of the load-bearing schemaName strings (typed_truths, truth_attack, decomposition, rubric_verdicts, rubric_guidance, rubric_revision, agent_spec, triage_plan, agent_output, synthesis, direct_answer). Report any such change as a silent invariant breach even if the build stays green.",
+      "evidenceGuidance": "Look for an explicit scan of the load-bearing schemaName strings (typed_truths, truth_attack, decomposition, rubric_verdicts, rubric_guidance, rubric_revision, agent_spec, triage_plan, agent_output, synthesis, direct_answer) for any rename/deletion/alteration. PASS requires the review to check these specific literals and, if any is changed, flag it as a silent invariant breach explicitly noting it may pass the build. FAIL if the strings are not checked, or a change to one is present in the diff but not flagged as a silent breach."
+    },
+    {
+      "id": "c-s9",
+      "source": "subtask",
+      "subtaskId": "s9",
+      "description": "The deliverable adequately addresses: From the described changes, identify each change that alters runtime logic or produced output (as opposed to comments, formatting, or docs). Produce the list of behavior-changing modifications.",
+      "evidenceGuidance": "Look for a distinct list of behavior-changing modifications — changes that alter runtime logic or produced output — explicitly separated from comment/formatting/doc-only edits. PASS requires each listed item to map to a real hunk and to be justified as behavior-affecting. FAIL if it treats all edits identically, includes pure formatting/comments as behavior changes without distinction, or omits clearly behavioral hunks present in the diff."
+    },
+    {
+      "id": "c-s10",
+      "source": "subtask",
+      "subtaskId": "s10",
+      "description": "The deliverable adequately addresses: For each identified behavior change, determine whether the diff includes corresponding test coverage exercising the new/changed behavior. List behavior changes that are untested or under-tested.",
+      "evidenceGuidance": "For each behavior change from c-s9, look for a determination of whether the diff adds/updates tests exercising that behavior, and a resulting list of untested or under-tested changes. PASS requires the review to reference test files/hunks in the diff (or their absence) per behavior change. FAIL if test coverage is not assessed, is assessed only globally rather than per change, or claims coverage without citing the test code."
+    },
+    {
+      "id": "c-s11",
+      "source": "subtask",
+      "subtaskId": "s11",
+      "description": "The deliverable adequately addresses: Evaluate the described changes for unjustified complexity: added abstraction, indirection, dependencies, or code paths not serving a stated need. For each, assess whether a simpler change achieves the same result and flag the excess.",
+      "evidenceGuidance": "Look for an unjustified-complexity evaluation: each added abstraction, indirection, dependency, or new code path assessed against a stated need, with a note on whether a simpler alternative achieves the same result. PASS requires at least a reasoned pass over the diff's additions flagging excess (or explicitly clearing them as justified). FAIL if complexity is never evaluated, or excess is flagged without proposing/considering a simpler equivalent."
+    },
+    {
+      "id": "c-s12",
+      "source": "subtask",
+      "subtaskId": "s12",
+      "description": "The deliverable adequately addresses: Synthesize all findings into a single review report organized by the three required categories — invariant violations (including the schemaName-specific breach findings and diff-integrity caveats), untested behavior changes, and unjustified complexity — with severity and evidence citations per finding, noting the review assumes the five CLAUDE.md invariants are current and authoritative.",
+      "evidenceGuidance": "Look for a single synthesized review report organized by the three required categories (invariant violations — including schemaName-specific breaches and diff-integrity caveats — untested behavior changes, unjustified complexity), with a severity and evidence citation per finding, and an explicit note that the review assumes the five CLAUDE.md invariants are current and authoritative. PASS requires all three category sections, per-finding severity + citation, the schemaName/diff-integrity items folded into invariant violations, and the authoritative-invariants caveat. FAIL if findings are unstructured, missing severity/citations, or the caveat is absent."
+    }
+  ],
+  "truths": [
+    {
+      "id": "t7",
+      "type": "constraint",
+      "statement": "The review must evaluate all three categories — invariant violations, untested behavior changes, and unjustified complexity — for the diff.",
+      "rationale": "The objective conjoins the three explicitly; omitting any category yields an incomplete review that fails the stated goal."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "t9",
+      "type": "assumption",
+      "statement": "The schemaName strings (typed_truths, truth_attack, decomposition, rubric_verdicts, rubric_guidance, rubric_revision, agent_spec, triage_plan, agent_output, synthesis, direct_answer) are matched exactly by the test suite's scripted fakes, so renaming one is a silent invariant breach even if the build stays green.",
+      "rationale": "CLAUDE.md invariant 2 states these dispatch on exact strings; this is a specific, checkable failure mode the review must actively look for in string edits."
+    },
+    {
+      "id": "t10",
+      "type": "assumption",
+      "statement": "The provided diff is complete and applies cleanly against the current repository HEAD.",
+      "rationale": "I cannot verify the diff's base commit from the objective alone; if it applies to a stale or partial tree, findings about surrounding context (e.g., emit.ts mirrored-deps) could be wrong."
+    },
+    {
+      "id": "t11",
+      "type": "assumption",
+      "statement": "The five invariants in CLAUDE.md are current and authoritative at review time, i.e., not superseded by a newer instruction outside the diff.",
+      "rationale": "The review's correctness depends on the invariant list being live; instructions can drift, and I am choosing to treat the shown CLAUDE.md as ground truth."
+    }
+  ],
+  "rejectedTruths": [
+    {
+      "statement": "An \"invariant\" is exactly one of the five numbered rules in CLAUDE.md: single LLM gateway, load-bearing schemaName strings, verbatim-copied self-contained emitted directories, structured-output-safe schemas, and falsifiable mechanisms.",
+      "attack": "CLAUDE.md contains additional \"must always hold / keep it that way\" constraints outside the five numbered rules — notably Auth's \"Missing key is a warning, not an error — keep it that way\" and Commands' \"unit tests are network-free\" / \"build must stay green.\" A diff violating any of these is precisely the kind of invariant-violation the review objective must catch, yet the claim's word \"exactly\" excludes them. The definition is therefore under-inclusive and false as an exhaustive account of \"the repo's invariants.\""
+    },
+    {
+      "statement": "A \"behavior change\" is a diff hunk that alters runtime execution paths, and is distinct from changes touching only comments, documentation, formatting, or test files.",
+      "attack": "In this LLM-agent framework, the definition's own excluded categories contain real behavior changes: prompt/instruction strings and schema-JSON edits read as \"formatting/documentation/data\" but alter runtime LLM output and structured-output validity (invariant #4). Worse, excluding \"test files\" makes a test-only diff that deletes the scripted fakes dispatching on load-bearing schemaName strings (invariant #2) or removes the evidence-requirement guard (invariant #5) categorically 'not a behavior change' — rendering invisible exactly the hunks the 'untested behavior changes' review category must catch."
+    },
+    {
+      "statement": "\"Untested behavior change\" means a behavior change for which no added or existing test exercises the new or altered path.",
+      "attack": "The definition equates \"a test exercises the new/altered path\" with \"tested,\" but path execution (coverage) is not behavior verification. In this repo the pipeline tests use scripted fakes that return canned output; a test can walk an altered path and pass regardless of what the change does. So a genuine invariant-breaking behavior change (e.g., refine.ts no longer escalating on repeats) gets classified as \"tested\" merely because a fake-driven test traverses the path — a false negative on exactly the class the objective must catch. It also can't classify data-only behavior changes (constant/threshold/schemaName edits) that alter behavior without altering any path."
+    },
+    {
+      "statement": "\"Unjustified complexity\" means added structure (new abstractions, dependencies, branches, indirection) whose necessity is not demonstrable from the change's stated purpose.",
+      "attack": "Counterexample of invariant-mandated complexity: the definition anchors \"justified\" solely to the change's *stated purpose*, but the repo's own invariants (single LLM gateway, self-contained emit dirs, schemaName dispatch, $schema stripping) force structure that a change's stated purpose need never mention. A change adding, say, a retry may require an extra indirection purely to avoid violating the single-gateway invariant. That indirection is not demonstrable from the stated purpose, yet it is required and justified — so the definition labels legitimately necessary, invariant-preserving structure as \"unjustified complexity.\" It produces a false positive on exactly the class of complexity this review objective exists to protect."
+    },
+    {
+      "statement": "The review's sole input is a unified git diff, so every finding must be grounded in lines present in that diff (or in repo state the diff references).",
+      "attack": "The objective mandates finding \"violations of the repo's invariants\" and \"untested behavior changes,\" yet both inherently depend on repo state absent from the diff. Invariant #2 (renaming a schemaName silently breaks test fakes) can only be caught by inspecting test files not in the hunk; \"untested\" is an assertion about the ABSENCE of a covering test, which by definition can never be \"a line present in the diff.\" So the constraint forbids exactly the findings the objective demands, making it self-defeating."
+    },
+    {
+      "statement": "Each reported violation must cite the specific invariant, file, and line/hunk it breaches — a verdict without located evidence is invalid.",
+      "attack": "The objective mandates finding three things — invariant violations, untested behavior changes, and unjustified complexity — but the claim requires every reported violation to \"cite the specific invariant, file, and line/hunk it breaches.\" Two of the three finding categories breach no invariant at all: there is no invariant for \"unjustified complexity\" or \"untested behavior change.\" A valid complexity finding literally cannot cite \"the specific invariant\" because none exists, forcing the reviewer to either fabricate an invariant reference or suppress legitimate in-scope findings. The constraint is therefore incoherent/false for two-thirds of the review's mandated scope."
+    },
+    {
+      "statement": "Unit tests in this repo are network-free and every LLM caller takes an injected Llm that tests supply as a fake, so a behavior change is testable without live model calls.",
+      "attack": "An injected fake Llm by definition replaces the sole real gateway (makeClaudeAgentSdkLlm), so behavior changes IN the gateway or at the SDK-CLI boundary — precisely the $schema-stripping and structured-output behavior Invariant 4 protects — cannot be tested with a fake. The repo's own live-verification skill and paid `generate-agents`/`compile-rubric` live commands exist only because such changes require live model calls, directly refuting \"a behavior change is testable without live model calls.\""
+    }
+  ],
+  "decomposition": {
+    "status": "converged",
+    "iterations": 2
+  },
+  "gradeability": {
+    "status": "converged",
+    "iterations": 2
+  },
+  "generatedAt": "2026-07-03T15:13:02.930Z",
+  "model": "claude-opus-4-8"
+}
