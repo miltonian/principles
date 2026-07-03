@@ -146,6 +146,18 @@ describe("gradeabilityCheck", () => {
     expect(out.status).toBe("escalated");
     expect(out.criteria.map((c) => c.id)).toEqual(guided().map((c) => c.id)); // original kept
   });
+
+  it("surfaces stuckOn meta-criteria on escalation", async () => {
+    const llm = (async (req: any) => {
+      if (req.schemaName === "rubric_verdicts") return failIndependent;
+      if (req.schemaName === "rubric_revision")
+        return { criteria: [{ id: "c-invented", description: "new!", evidenceGuidance: "x" }] };
+      throw new Error(`unexpected ${req.schemaName}`);
+    }) as unknown as Llm;
+    const out = await gradeabilityCheck(llm, "obj", guided());
+    expect(out.status).toBe("escalated");
+    expect(out.stuckOn).toEqual(["m-independent"]);
+  });
 });
 
 describe("reviseCriteria", () => {
@@ -218,6 +230,7 @@ describe("compileRubric", () => {
     expect(rubric.rejectedTruths).toEqual([]);
     expect(rubric.decomposition).toEqual({ status: "escalated", iterations: 2 });
     expect(rubric.gradeability).toEqual({ status: "converged", iterations: 1 });
+    expect(rubric.gradeability.stuckOn).toBeUndefined(); // converged → no stuckOn
     expect(rubric.generatedAt).toBe("2026-07-03T00:00:00.000Z");
     expect(rubric.model).toBe("claude-opus-4-8");
   });

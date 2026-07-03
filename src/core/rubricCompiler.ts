@@ -5,6 +5,8 @@ import { refine, RefineFeedback } from "../shared/refine";
 import { judge } from "../shared/judge";
 import { deriveFoundations } from "./foundations";
 
+export type LoopStatus = "converged" | "escalated" | "exhausted";
+
 export interface CompiledCriterion extends Criterion {
   subtaskId?: string;
   evidenceGuidance: string;
@@ -16,8 +18,8 @@ export interface CompiledRubric {
   truths: Truth[];
   assumptions: Truth[];
   rejectedTruths: { statement: string; attack: string }[];
-  decomposition: { status: string; iterations: number };
-  gradeability: { status: string; iterations: number };
+  decomposition: { status: LoopStatus; iterations: number };
+  gradeability: { status: LoopStatus; iterations: number; stuckOn?: string[] };
   generatedAt: string;
   model: string;
 }
@@ -202,7 +204,7 @@ export async function gradeabilityCheck(
   llm: Llm,
   objective: string,
   criteria: CompiledCriterion[]
-): Promise<{ criteria: CompiledCriterion[]; status: string; iterations: number }> {
+): Promise<{ criteria: CompiledCriterion[]; status: LoopStatus; iterations: number; stuckOn?: string[] }> {
   const outcome = await refine<CompiledCriterion[]>(
     async (feedback) => (feedback ? reviseCriteria(llm, objective, feedback.previous, feedback) : criteria),
     (candidate) =>
@@ -213,7 +215,12 @@ export async function gradeabilityCheck(
       }),
     { maxIterations: 3 }
   );
-  return { criteria: outcome.result, status: outcome.status, iterations: outcome.iterations };
+  return {
+    criteria: outcome.result,
+    status: outcome.status,
+    iterations: outcome.iterations,
+    ...(outcome.status === "escalated" ? { stuckOn: outcome.stuckOn } : {}),
+  };
 }
 
 /**
@@ -238,7 +245,11 @@ export async function compileRubric(
     assumptions: f.vet.assumptions,
     rejectedTruths: f.vet.rejected.map((r) => ({ statement: r.truth.statement, attack: r.attack })),
     decomposition: { status: f.decomposition.status, iterations: f.decomposition.iterations },
-    gradeability: { status: checked.status, iterations: checked.iterations },
+    gradeability: {
+      status: checked.status,
+      iterations: checked.iterations,
+      ...(checked.stuckOn ? { stuckOn: checked.stuckOn } : {}),
+    },
     generatedAt: now().toISOString(),
     model: "claude-opus-4-8",
   };
