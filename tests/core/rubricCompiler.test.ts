@@ -216,6 +216,7 @@ describe("compileRubric", () => {
     expect(rubric.truths.map((t) => t.id)).toEqual(["t1"]);       // kept only
     expect(rubric.assumptions).toHaveLength(1);                    // demoted t2
     expect(rubric.rejectedTruths).toEqual([]);
+    expect(rubric.decomposition).toEqual({ status: "escalated", iterations: 2 });
     expect(rubric.gradeability).toEqual({ status: "converged", iterations: 1 });
     expect(rubric.generatedAt).toBe("2026-07-03T00:00:00.000Z");
     expect(rubric.model).toBe("claude-opus-4-8");

@@ -16,6 +16,7 @@ export interface CompiledRubric {
   truths: Truth[];
   assumptions: Truth[];
   rejectedTruths: { statement: string; attack: string }[];
+  decomposition: { status: string; iterations: number };
   gradeability: { status: string; iterations: number };
   generatedAt: string;
   model: string;
@@ -236,6 +237,7 @@ export async function compileRubric(
     truths: f.vet.kept,
     assumptions: f.vet.assumptions,
     rejectedTruths: f.vet.rejected.map((r) => ({ statement: r.truth.statement, attack: r.attack })),
+    decomposition: { status: f.decomposition.status, iterations: f.decomposition.iterations },
     gradeability: { status: checked.status, iterations: checked.iterations },
     generatedAt: now().toISOString(),
     model: "claude-opus-4-8",
