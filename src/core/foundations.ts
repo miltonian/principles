@@ -42,7 +42,12 @@ export async function deriveFoundations(llm: Llm, objective: string): Promise<Fo
       return judge(llm, {
         rubric,
         candidate: subtasks
-          .map((s) => `${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"})`)
+          .map(
+            (s) =>
+              `${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
+                s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
+              })`
+          )
           .join("\n"),
         context: `Objective: ${objective}\nTruths:\n${truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`).join("\n")}`,
       });

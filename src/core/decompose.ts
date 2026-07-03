@@ -9,6 +9,8 @@ const DecompositionSchema = z.object({
       description: z.string(),
       servesTruths: z.array(z.string()),
       dependsOnIndices: z.array(z.number().int()), // 1-based index into this same list
+      needsWeb: z.boolean(),
+      webJustification: z.string(),
     })
   ),
 });
@@ -29,7 +31,12 @@ export async function decompose(
     ? [
         ``,
         `## Previous attempt (REVISE this — do not start over)`,
-        ...feedback.previous.map((s) => `- ${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"})`),
+        ...feedback.previous.map(
+          (s) =>
+            `- ${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
+              s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
+            })`
+        ),
         ``,
         `## What failed — fix exactly these`,
         ...failures(feedback.critique).map((v) => `- ${v.criterionId}: ${v.evidence}`),
@@ -48,6 +55,10 @@ export async function decompose(
       "- Each subtask MUST cite the ids of the truths it serves (servesTruths).",
       "  If you cannot say which truth a subtask serves, the subtask does not belong.",
       "- dependsOnIndices: 1-based positions of subtasks whose OUTPUT this one needs.",
+      "- needsWeb: set true ONLY when the subtask must fetch or search EXTERNAL material that the",
+      "  user's prompt cannot be assumed to contain (e.g. retrieving a linked study). When true,",
+      "  webJustification must concretely name what external material and why it is needed;",
+      "  when false, webJustification is an empty string.",
     ].join("\n"),
     prompt: [
       `## Objective`,
@@ -55,6 +66,7 @@ export async function decompose(
       ``,
       `## Truths (cite these ids in servesTruths)`,
       ...truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`),
+      ``,
       ...feedbackSection,
     ].join("\n"),
     schema: DecompositionSchema,
@@ -68,5 +80,7 @@ export async function decompose(
     dependsOn: s.dependsOnIndices.map((n) =>
       n >= 1 && n <= result.subtasks.length && n !== i + 1 ? `s${n}` : `invalid:${n}`
     ),
+    needsWeb: s.needsWeb,
+    webJustification: s.webJustification.trim(),
   }));
 }

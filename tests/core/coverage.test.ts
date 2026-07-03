@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   orphanTruths, unmooredSubtasks, unknownCitations,
-  unknownDependencies, hasCycle, coverageCritique,
+  unknownDependencies, hasCycle, coverageCritique, unjustifiedWeb,
 } from "../../src/core/coverage";
 import { Truth, Subtask, failures } from "../../src/shared/types";
 
@@ -34,7 +34,7 @@ describe("coverage checks", () => {
   it("coverageCritique passes a clean decomposition", () => {
     const crit = coverageCritique([t("t1")], [s("s1", ["t1"])]);
     expect(failures(crit)).toEqual([]);
-    expect(crit.verdicts).toHaveLength(5);
+    expect(crit.verdicts).toHaveLength(6);
   });
 
   it("coverageCritique fails with evidence naming the offenders", () => {
@@ -45,5 +45,17 @@ describe("coverage checks", () => {
     expect(failed).toContain("cov-unknown-deps");
     const orphan = failures(crit).find((f) => f.criterionId === "cov-orphan-truths")!;
     expect(orphan.evidence).toContain("t2");
+  });
+
+  it("finds needsWeb subtasks lacking a justification", () => {
+    const withWeb = (id: string, needsWeb: boolean, just: string): Subtask =>
+      ({ id, description: id, servesTruths: ["t1"], dependsOn: [], needsWeb, webJustification: just });
+    expect(unjustifiedWeb([withWeb("s1", true, ""), withWeb("s2", true, "fetch the linked paper"), withWeb("s3", false, "")])).toEqual(["s1"]);
+  });
+
+  it("coverageCritique includes cov-web-justified", () => {
+    const crit = coverageCritique([t("t1")], [s("s1", ["t1"])]);
+    expect(crit.verdicts).toHaveLength(6);
+    expect(crit.verdicts.some((v) => v.criterionId === "cov-web-justified" && v.pass)).toBe(true);
   });
 });

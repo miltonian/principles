@@ -29,6 +29,9 @@ export async function runAgent(
       `Produce:`,
       `- result: your deliverable. Expected shape: ${spec.outputHint}`,
       `- notes: reasoning, caveats, and nuance that downstream agents need. Do not repeat the result here.`,
+      ...(spec.webTools
+        ? [`You may use web search and web fetch for this subtask. Cite the URLs you used in your notes.`]
+        : []),
     ].join("\n"),
     prompt: [
       `## User prompt`,
@@ -42,5 +45,6 @@ export async function runAgent(
     ].join("\n"),
     schema: AgentOutputSchema,
     schemaName: "agent_output",
+    ...(spec.webTools ? { webTools: true } : {}),
   });
 }

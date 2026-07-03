@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { makeClaudeAgentSdkLlm } from "../../src/llm/claudeGateway";
+import { makeClaudeAgentSdkLlm, WEB_MAX_TURNS } from "../../src/llm/claudeGateway";
 
 /** Fake query(): captures args, yields the given messages. */
 const fakeQuery = (messages: unknown[], capture?: { args?: any }) =>
@@ -235,5 +235,25 @@ describe("makeClaudeAgentSdkLlm", () => {
       llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })
     ).rejects.toThrow(/error_max_structured_output_retries/);
     expect(capture.calls).toBe(1);
+  });
+});
+
+describe("webTools option", () => {
+  it("enables exactly WebSearch and WebFetch with the web turn cap", async () => {
+    const capture: { args?: any } = {};
+    const llm = makeClaudeAgentSdkLlm({ queryFn: fakeQuery([success({ a: "x" })], capture) });
+    await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t", webTools: true });
+    expect(capture.args.options.tools).toEqual(["WebSearch", "WebFetch"]);
+    expect(capture.args.options.allowedTools).toEqual(["WebSearch", "WebFetch"]);
+    expect(capture.args.options.maxTurns).toBe(WEB_MAX_TURNS);
+  });
+
+  it("stays byte-identical tool-less when webTools is absent", async () => {
+    const capture: { args?: any } = {};
+    const llm = makeClaudeAgentSdkLlm({ queryFn: fakeQuery([success({ a: "x" })], capture) });
+    await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
+    expect(capture.args.options.tools).toEqual([]);
+    expect(capture.args.options.allowedTools).toEqual([]);
+    expect(capture.args.options.maxTurns).toBe(4);
   });
 });

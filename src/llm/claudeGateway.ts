@@ -28,6 +28,10 @@ const MAX_ATTEMPTS = 3;
 // decompositions. Allow 4 to be safe.
 const MAX_TURNS = 4;
 
+// Web tool loops consume turns fetching/searching before finalizing structured
+// output, so they need far more headroom than the tool-less MAX_TURNS above.
+export const WEB_MAX_TURNS = 12;
+
 /** Thrown for outcomes that must propagate immediately, never retried. */
 class NonRetryableSdkError extends Error {}
 
@@ -40,7 +44,7 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
   const model = opts.model ?? "claude-opus-4-8";
   const queryFn = opts.queryFn ?? query;
 
-  return async <T>({ system, prompt, schema, schemaName }: LlmRequest<T>): Promise<T> => {
+  return async <T>({ system, prompt, schema, schemaName, webTools }: LlmRequest<T>): Promise<T> => {
     // `schema` is `z.ZodType<T>` with a generic, unresolved `T` here; passing it
     // directly to zodToJsonSchema's `ZodSchema<any>` parameter makes TS try to
     // fully instantiate ZodType<T>'s structural type and blow the recursion
@@ -53,6 +57,9 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
     // The Agent SDK CLI silently ignores outputFormat when a $schema meta-key is present (verified live).
     delete jsonSchema["$schema"];
 
+    const webToolsEnabled = webTools === true;
+    const toolset = webToolsEnabled ? ["WebSearch", "WebFetch"] : [];
+
     const runQuery = (): AsyncIterable<any> =>
       queryFn({
         prompt,
@@ -64,9 +71,9 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
           // it does not restrict which tools are *available*). `tools: []`
           // is the field that actually disables the built-in toolset — pure
           // text transform, no tools, no file access.
-          allowedTools: [],
-          tools: [],
-          maxTurns: MAX_TURNS,
+          allowedTools: toolset,
+          tools: toolset,
+          maxTurns: webToolsEnabled ? WEB_MAX_TURNS : MAX_TURNS,
           outputFormat: { type: "json_schema", schema: jsonSchema },
         },
       }) as AsyncIterable<any>;

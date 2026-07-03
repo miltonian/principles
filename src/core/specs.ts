@@ -48,6 +48,9 @@ export async function generateAgentSpecs(
         ...(subtask.dependsOn.length
           ? subtask.dependsOn.map((d) => `- ${d}: ${subtasks.find((s) => s.id === d)?.description ?? d}`)
           : ["- none"]),
+        ...(subtask.needsWeb
+          ? [``, `## Web access`, `This agent will have web search/fetch. Justification: ${subtask.webJustification}. The instructions should direct what to retrieve and require citing URLs.`]
+          : []),
       ].join("\n"),
       schema: SpecSchema,
       schemaName: "agent_spec",
@@ -61,6 +64,7 @@ export async function generateAgentSpecs(
       servesTruths: [...subtask.servesTruths],
       dependsOn: subtask.dependsOn.map((d) => `agent-${d}`),
       outputHint: prose.outputHint,
+      ...(subtask.needsWeb === true ? { webTools: true } : {}),
     });
   }
   return specs;

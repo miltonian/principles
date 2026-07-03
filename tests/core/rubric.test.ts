@@ -11,7 +11,7 @@ const truths: Truth[] = [
 describe("rubric builders", () => {
   it("decompositionRubric = generics + one criterion per constraint truth", () => {
     const rubric = decompositionRubric(truths);
-    expect(rubric.map((c) => c.id)).toEqual(["d-minimal", "d-feasible", "d-complete", "d-t1", "d-t3"]);
+    expect(rubric.map((c) => c.id)).toEqual(["d-minimal", "d-feasible", "d-complete", "d-web", "d-t1", "d-t3"]);
     const dt1 = rubric.find((c) => c.id === "d-t1")!;
     expect(dt1.source).toBe("truth");
     expect(dt1.truthId).toBe("t1");
@@ -21,5 +21,10 @@ describe("rubric builders", () => {
   it("outputRubric = generics + one criterion per constraint truth", () => {
     const rubric = outputRubric(truths);
     expect(rubric.map((c) => c.id)).toEqual(["o-responsive", "o-grounded", "o-t1", "o-t3"]);
+  });
+
+  it("decompositionRubric places d-web after d-complete, before truth criteria", () => {
+    const rubric = decompositionRubric(truths);
+    expect(rubric.map((c) => c.id)).toEqual(["d-minimal", "d-feasible", "d-complete", "d-web", "d-t1", "d-t3"]);
   });
 });
