@@ -25,7 +25,7 @@ This is the audit trail most AI systems can't produce. Follow truth **t3**:
 
 ## The web-gating mechanism
 
-Only 2 of 8 subtasks carry `needsWeb: true` (`s2` fetch the study, `s5` retrieve design-appropriate methodological standards) — each with a concrete justification the decomposition judge verified (`d-web` criterion). At runtime only those two agents get `WebSearch`/`WebFetch`; the other six run tool-less. In the recorded run, transcript audit confirmed exactly those two agents used web tools.
+Only 2 of 8 subtasks carry `needsWeb: true` (`s2` fetch the study, `s5` retrieve design-appropriate methodological standards) — each with a concrete justification the decomposition judge verified (`d-web` criterion); verify this yourself in `ontology.json`. By construction, only agents whose spec carries `webTools: true` can invoke `WebSearch`/`WebFetch` (see `src/runtime/agent.ts` and the gateway) — all other calls are tool-less. To audit any run of your own: the Agent SDK writes per-call transcripts under `~/.claude/projects/<cwd-slug>/*.jsonl`; grep them for `"name":"WebFetch"` / `"name":"WebSearch"`. When we ran this on 2026-07-03, exactly two transcripts contained web tool use — the study fetch and the guidelines lookup.
 
 ## Reproduce / adapt
 
