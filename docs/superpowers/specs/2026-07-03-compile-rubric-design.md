@@ -37,6 +37,7 @@ Artifacts, written to `rubrics/<slug>-<timestamp>/`:
   "truths": [...],                // kept truths (typed)
   "assumptions": [...],           // demoted truths, surfaced
   "rejectedTruths": [{"statement": "…", "attack": "…"}],
+  "decomposition": { "status": "converged|escalated|exhausted", "iterations": n },
   "gradeability": { "status": "converged|escalated|exhausted", "iterations": n },
   "generatedAt": "ISO", "model": "claude-opus-4-8"
 }
@@ -121,7 +122,7 @@ Network-free with injected fake `Llm` (established pattern):
 - `foundations.test.ts` — extraction equivalence: scripted-fake run of `deriveFoundations` produces the same truths/subtasks the pipeline test expects; `generateOntology` scripted test unchanged and still green.
 - `rubricCompiler.test.ts` — criteria assembly (sources/ids/provenance), guidance batching + missing-guidance default, meta-check revise loop (converge / escalate paths), id-immutability enforcement, drop-allowed/add-forbidden.
 - `rubricRender.test.ts` — markdown contains groups, every criterion, every evidence line; JSON round-trips.
-- CLI covered by one emit-style tmp-dir test (writes both files, prints paths).
+- Artifact writer covered by an emit-style tmp-dir test; the CLI itself is covered by the live gate (matching the `agentGenerator.ts` convention).
 - Final gate: one live compile of the spec's own example goal ("evaluate whether a vendor proposal satisfies our security requirements"), monitored with the stage-probe playbook from `.claude/skills/live-verification`; verify both artifacts by eye against the rubric.md format contract above.
 
 ## Out of scope
