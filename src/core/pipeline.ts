@@ -1,13 +1,10 @@
 import { Llm } from "../llm/gateway";
-import { Ontology, Subtask, failures } from "../shared/types";
-import { refine, RefineOutcome } from "../shared/refine";
-import { judge } from "../shared/judge";
-import { deriveTruths } from "./truths";
-import { vetTruths, VetResult } from "./skeptic";
-import { decompose } from "./decompose";
-import { coverageCritique } from "./coverage";
-import { decompositionRubric, outputRubric } from "./rubric";
+import { Ontology, Subtask } from "../shared/types";
+import { RefineOutcome } from "../shared/refine";
+import { VetResult } from "./skeptic";
+import { outputRubric } from "./rubric";
 import { generateAgentSpecs } from "./specs";
+import { deriveFoundations } from "./foundations";
 
 export interface GenerationReport {
   ontology: Ontology;
@@ -16,53 +13,23 @@ export interface GenerationReport {
 }
 
 /**
- * derive → vet → refine(decompose ⇄ judge) → specs → ontology.
- * The decomposition judge is two-stage: mechanical coverage checks first
- * (free, deterministic); the LLM rubric judge only runs on structurally
- * sound candidates.
+ * deriveFoundations (derive → vet → refine-with-coverage) + agent specs +
+ * ontology assembly. See src/core/foundations.ts for the shared front half.
  */
 export async function generateOntology(llm: Llm, objective: string): Promise<GenerationReport> {
-  const derived = await deriveTruths(llm, objective);
-  const vet = await vetTruths(llm, objective, derived);
-  const truths = [...vet.kept, ...vet.assumptions];
-  if (truths.length === 0) {
-    throw new Error(
-      `No truths survived vetting for objective "${objective}". ` +
-        `Rejected: ${vet.rejected.map((r) => `${r.truth.statement} (${r.attack})`).join("; ")}`
-    );
-  }
-
-  const rubric = decompositionRubric(truths);
-
-  const decomposition = await refine<Subtask[]>(
-    (feedback) => decompose(llm, objective, truths, feedback),
-    async (subtasks) => {
-      const mechanical = coverageCritique(truths, subtasks);
-      if (failures(mechanical).length > 0) return mechanical;
-      return judge(llm, {
-        rubric,
-        candidate: subtasks
-          .map((s) => `${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"})`)
-          .join("\n"),
-        context: `Objective: ${objective}\nTruths:\n${truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`).join("\n")}`,
-      });
-    },
-    { maxIterations: 5 }
-  );
-
-  const subtasks = decomposition.result;
-  const agents = await generateAgentSpecs(llm, objective, truths, subtasks);
+  const f = await deriveFoundations(llm, objective);
+  const agents = await generateAgentSpecs(llm, objective, f.truths, f.subtasks);
 
   return {
     ontology: {
       objective,
-      truths: vet.kept,
-      assumptions: vet.assumptions,
-      subtasks,
+      truths: f.vet.kept,
+      assumptions: f.vet.assumptions,
+      subtasks: f.subtasks,
       agents,
-      outputRubric: outputRubric(truths),
+      outputRubric: outputRubric(f.truths),
     },
-    vet,
-    decomposition,
+    vet: f.vet,
+    decomposition: f.decomposition,
   };
 }

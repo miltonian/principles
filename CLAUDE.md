@@ -5,7 +5,7 @@ Agent-generation framework: compiles a goal into typed, adversarially-vetted tru
 ## Invariants (violating any of these breaks tests or production)
 
 1. **Single LLM gateway.** Every model call goes through the `Llm` function type in `src/llm/gateway.ts`, implemented only by `makeClaudeAgentSdkLlm` (`src/llm/claudeGateway.ts`, Claude Agent SDK, model `claude-opus-4-8`). Never import `@anthropic-ai/claude-agent-sdk` anywhere else; never add a raw-API client (`@anthropic-ai/sdk`, `openai`).
-2. **schemaName strings are load-bearing.** `typed_truths`, `truth_attack`, `decomposition`, `rubric_verdicts`, `agent_spec`, `triage_plan`, `agent_output`, `synthesis`, `direct_answer` — the test suite's scripted fakes dispatch on these exact strings. Renaming one silently breaks pipeline tests.
+2. **schemaName strings are load-bearing.** `typed_truths`, `truth_attack`, `decomposition`, `rubric_verdicts`, `rubric_guidance`, `rubric_revision`, `agent_spec`, `triage_plan`, `agent_output`, `synthesis`, `direct_answer` — the test suite's scripted fakes dispatch on these exact strings. Renaming one silently breaks pipeline tests.
 3. **Emitted packages copy source verbatim.** `src/core/emit.ts` copies `src/shared/`, `src/llm/`, `src/runtime/` into every generated package. Those three directories must stay self-contained: no imports from `src/core/` or `src/scripts/`, and any new dependency they use must be added to the mirrored-deps list in `emit.ts`.
 4. **Schemas must be structured-output-safe.** Closed objects (`additionalProperties: false` via `zodToJsonSchema` target `openAi`), no recursion, no numeric/string constraints — and never let a `$schema` meta-key through (the Agent SDK CLI silently skips structured output when present; the gateway strips it, keep it that way).
 5. **Mechanisms stay falsifiable.** Judges must require evidence (enforced in code in `src/shared/judge.ts`); refine loops must feed critiques back and escalate on repeats (`src/shared/refine.ts`); non-converged agent output must surface in `RunResult.unverified`, never be silently blessed.
@@ -15,6 +15,7 @@ Agent-generation framework: compiles a goal into typed, adversarially-vetted tru
 - `yarn build` — tsc (must stay green)
 - `yarn test` — vitest (unit tests are network-free; all LLM callers take an injected `Llm`, tests pass fakes)
 - `yarn generate-agents "<goal>"` — full live pipeline (many Opus calls, costs money; see the `live-verification` skill first)
+- `yarn compile-rubric "<goal>"` — compile a gradeable rubric only (foundations, no agent specs; see the `live-verification` skill for run guidance)
 
 ## Auth
 

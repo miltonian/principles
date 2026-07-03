@@ -20,7 +20,7 @@ export interface Subtask {
 export interface Criterion {
   id: string;
   description: string;
-  source: "truth" | "generic";
+  source: "truth" | "generic" | "subtask";
   truthId?: string; // set when source === "truth"
 }
 

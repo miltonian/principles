@@ -4,7 +4,8 @@ node_modules
 generated-agents
 
 dist
-agents 
+agents
 ignore
 packages
+rubrics/
 .DS_Store
