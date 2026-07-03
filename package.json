@@ -18,6 +18,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc",
     "generate-agents": "yarn build && node dist/scripts/agentGenerator.js",
+    "compile-rubric": "yarn build && node dist/scripts/rubricCli.js",
     "test": "vitest run",
     "test:watch": "vitest"
   }
