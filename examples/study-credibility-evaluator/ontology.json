@@ -1,0 +1,271 @@
+{
+  "objective": "evaluate whether a claim backed by data is based on a sufficiently rigorous study, fetching the study itself when a link or citation is provided",
+  "truths": [
+    {
+      "id": "t3",
+      "type": "fact",
+      "statement": "The objective contains two separable judgments — (a) whether the underlying study is rigorous, and (b) whether the claim is actually supported by that study — and a claim can cite a rigorous study while misrepresenting its findings.",
+      "rationale": "Directly checkable by inspecting the objective's wording plus real-world examples of accurate citations to distorted conclusions; if false, only rigor need be assessed."
+    },
+    {
+      "id": "t4",
+      "type": "fact",
+      "statement": "The rigor bar differs by study design and field (e.g., RCT vs. observational cohort vs. meta-analysis vs. case study), so a single fixed checklist cannot correctly score every study.",
+      "rationale": "A methodological fact about study appraisal; falsifiable by producing one universal checklist that validly ranks all designs."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "t8",
+      "type": "assumption",
+      "statement": "A provided link or citation resolves to enough of the actual study — at minimum methods and results — rather than only an abstract, a paywall, or a secondary summary.",
+      "rationale": "Cannot be verified in advance and often fails in practice; if wrong, the evaluation degrades to the unverifiable path."
+    },
+    {
+      "id": "t9",
+      "type": "assumption",
+      "statement": "The evaluator possesses (or can acquire) domain expertise sufficient to judge methodology in the study's field.",
+      "rationale": "Assessing power, controls, and bias in, say, epidemiology vs. econometrics requires field knowledge; this is an unverifiable capability bet worth stating honestly."
+    },
+    {
+      "id": "t10",
+      "type": "assumption",
+      "statement": "\"Rigor\" of the study is being used as a proxy for the trustworthiness of the claim, i.e., the user cares about the claim's credibility, not the study in isolation.",
+      "rationale": "The objective frames the study only as backing for a claim; if the user actually wants a standalone study review, the emphasis on claim-alignment would be misplaced."
+    }
+  ],
+  "subtasks": [
+    {
+      "id": "s1",
+      "description": "Parse the user's input to extract (a) the exact claim being made, (b) the specific data/quantitative assertion backing it, and (c) any study link, DOI, or bibliographic citation provided. Output a structured record of these three elements and note whether a resolvable link/citation exists.",
+      "servesTruths": [
+        "t3",
+        "t8"
+      ],
+      "dependsOn": [],
+      "needsWeb": false,
+      "webJustification": ""
+    },
+    {
+      "id": "s2",
+      "description": "Follow the extracted link or citation and retrieve the full study text, prioritizing the methods and results sections. Capture the actual content rather than a summary.",
+      "servesTruths": [
+        "t8"
+      ],
+      "dependsOn": [
+        "s1"
+      ],
+      "needsWeb": true,
+      "webJustification": "The study itself lives at an external URL/DOI or in a database; the user's prompt only supplies a link or citation, not the full methods and results, which must be fetched to judge rigor."
+    },
+    {
+      "id": "s3",
+      "description": "Verify that the retrieved material actually contains enough of the real study (at minimum methods and results) rather than only an abstract, a paywall stub, or a secondary summary. Explicitly flag insufficiency and its impact on the evaluation's confidence.",
+      "servesTruths": [
+        "t8"
+      ],
+      "dependsOn": [
+        "s2"
+      ],
+      "needsWeb": false,
+      "webJustification": ""
+    },
+    {
+      "id": "s4",
+      "description": "Classify the study's design (e.g., RCT, observational cohort, case-control, meta-analysis, case study) and its academic field from the retrieved methods, since the applicable rigor bar depends on both.",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "s2"
+      ],
+      "needsWeb": false,
+      "webJustification": ""
+    },
+    {
+      "id": "s5",
+      "description": "Retrieve the field- and design-appropriate methodological and reporting standards for the classified study type (e.g., CONSORT for RCTs, PRISMA for meta-analyses, STROBE for observational studies) to serve as the correct rigor benchmark.",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "s4"
+      ],
+      "needsWeb": true,
+      "webJustification": "Design-specific reporting guidelines and field methodological norms are external reference documents not contained in the user's prompt; they are needed so rigor is judged against the correct standard rather than a generic checklist."
+    },
+    {
+      "id": "s6",
+      "description": "Assess the study's methodological rigor by applying the design-appropriate standards to its actual methods and results (sample size/power, controls, bias/confounding handling, statistical validity, limitations). Produce a reasoned rigor verdict conditioned on the study design.",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "s3",
+        "s4",
+        "s5"
+      ],
+      "needsWeb": false,
+      "webJustification": ""
+    },
+    {
+      "id": "s7",
+      "description": "Independently of rigor, evaluate whether the specific claim and its data assertion are actually supported by the study's findings — checking for overgeneralization, misstatement of effect size/direction, cherry-picking, or scope mismatch between what was studied and what is claimed.",
+      "servesTruths": [
+        "t3"
+      ],
+      "dependsOn": [
+        "s1",
+        "s2"
+      ],
+      "needsWeb": false,
+      "webJustification": ""
+    },
+    {
+      "id": "s8",
+      "description": "Synthesize the rigor verdict and the claim-support verdict into an overall judgment of the claim's credibility, treating study rigor as a proxy for trustworthiness, and stating how any evidence insufficiency (from the verification step) qualifies the conclusion.",
+      "servesTruths": [
+        "t10",
+        "t3"
+      ],
+      "dependsOn": [
+        "s6",
+        "s7",
+        "s3"
+      ],
+      "needsWeb": false,
+      "webJustification": ""
+    }
+  ],
+  "agents": [
+    {
+      "id": "agent-s1",
+      "name": "extract-claim-data-citation",
+      "subtaskId": "s1",
+      "instructions": "You are an input-parsing agent. Your ONLY job is to read the user's raw input and extract three separable elements verbatim, then assess whether a resolvable study reference exists. You do NOT judge rigor, do NOT judge whether the claim is supported, do NOT fetch anything, and do NOT evaluate truth. You only parse and record what is present.\n\nINPUT\nYou receive the user's original message asserting some claim backed by data, possibly with a link, DOI, or citation.\n\nWHAT TO EXTRACT\nExtract each of the three elements below. Quote the user's own words as closely as possible; do not paraphrase into your own framing, and do not invent content that is not in the input.\n\n1. CLAIM — the exact assertion the user is advancing (the conclusion or position they want believed). Capture the claim as a standalone sentence. If multiple distinct claims are present, capture each separately.\n\n2. BACKING DATA — the specific quantitative or empirical assertion offered as support (numbers, percentages, effect sizes, sample counts, statistical results, measured quantities). Record the figures exactly as stated, including units and any comparison group or baseline mentioned. If the \"data\" is only vague (\"studies show\", \"most experts agree\") with no concrete quantity, record that the backing is non-quantitative and note what was said.\n\n3. STUDY REFERENCE — any link (URL), DOI, PubMed/arXiv ID, or bibliographic citation (authors, year, title, journal). Record each reference exactly as given. If none is present, record that explicitly.\n\nCRITICAL DISTINCTION (constraint t3)\nThe claim and the backing data are TWO SEPARABLE things, and a downstream agent will need to check both (i) whether the cited study is rigorous and (ii) whether the claim faithfully represents that study. Because of this, you MUST NOT merge the claim and the data into a single blob. Keep them in separate fields even when the user states them in one sentence, so that a later mismatch between claim and data remains detectable. If the claim asserts more than the data actually states (e.g., causation from a correlational figure, generalization beyond the stated population), flag this as a note — but do not resolve it; only surface it.\n\nRESOLVABILITY ASSESSMENT (constraint t8)\nFor the reference(s) found, judge only whether a reference EXISTS and is well-formed enough to attempt retrieval — a plausible URL, a valid-looking DOI, or a citation complete enough to locate the source. Then classify:\n- \"resolvable_reference\": a concrete link/DOI/citation is present that a fetcher could attempt.\n- \"reference_present_but_incomplete\": something study-like is mentioned but lacks a locator (e.g., \"a Harvard study\" with no title, author, year, or link).\n- \"no_reference\": no study reference of any kind.\nYou CANNOT and MUST NOT assert that the reference actually resolves to the full study, nor that it exposes methods and results rather than only an abstract, paywall, or secondary summary. That verification is a later step. Where relevant, note if the reference looks like a secondary source (news article, blog, press release) rather than a primary study, since that affects whether methods/results will be reachable — but record it as a caveat, not a conclusion.\n\nRULES\n- Never fabricate a claim, figure, or citation not present in the input.\n- Preserve exact numbers, units, and wording; do not round or normalize.\n- If an element is absent, say so explicitly rather than leaving it blank or guessing.\n- Stay strictly within parsing; make no rigor or support judgments.\n- Keep notes factual and observational; flag issues without resolving them.",
+      "servesTruths": [
+        "t3",
+        "t8"
+      ],
+      "dependsOn": [],
+      "outputHint": "A structured record (JSON-like or clearly labeled fields) containing: (1) `claim` — the extracted claim(s) verbatim as standalone statement(s); (2) `backing_data` — the specific quantitative/empirical assertion(s) with exact figures and units, or an explicit note that backing is non-quantitative; (3) `study_reference` — each link/DOI/citation verbatim, or explicit \"none provided\"; (4) `resolvability` — one of {resolvable_reference, reference_present_but_incomplete, no_reference}; (5) `notes` — observations flagging (but not resolving) any claim-vs-data mismatch, over-generalization, or signs the reference is a secondary source rather than a primary study. Each of the three core elements must stay in its own field, never merged. No rigor or support judgments included."
+    },
+    {
+      "id": "agent-s2",
+      "name": "Retrieve Full Study Text",
+      "subtaskId": "s2",
+      "instructions": "You are a study-retrieval agent. Your single job: given a study link, DOI, or bibliographic citation extracted from the user's input (provided to you as the structured record from subtask s1), fetch and return the ACTUAL content of the study — with the methods and results sections as your top priority. You have web search and web fetch tools. Every claim you return about the study must be traceable to a URL you actually retrieved.\n\nINPUT YOU RECEIVE\n- A structured record from s1 containing: (a) the exact claim, (b) the backing data assertion, and (c) any study link/DOI/citation, plus a flag on whether a resolvable link/citation exists.\n\nSTEP 1 — RESOLVE THE SOURCE\n- If a direct URL is given, fetch it.\n- If a DOI is given, fetch https://doi.org/<DOI> (and, if that fails, search for the DOI string).\n- If only a bibliographic citation (authors, title, year, journal) is given, web-search the exact title in quotes plus author/year to locate the study, then fetch the best result.\n- Always prefer the primary publisher/journal page or an official full-text repository (e.g., PubMed Central, the journal PDF, an institutional or preprint server like arXiv/bioRxiv/SSRN, or an open-access mirror). Avoid stopping at news articles, blog posts, press releases, or third-party summaries — those are NOT the study.\n\nSTEP 2 — VERIFY YOU HAVE THE REAL STUDY (this enforces truth t8)\nTruth t8 is a HARD CONSTRAINT: a link/citation must resolve to enough of the ACTUAL study — at minimum the methods and results — not only an abstract, a paywall stub, or a secondary summary. Therefore:\n- Confirm you can see substantive Methods and Results content, not just an abstract or a \"purchase access\" page.\n- If your first fetch yields only an abstract or a paywall, actively try alternatives BEFORE giving up: search for the title + \"PDF\", check PubMed Central / Europe PMC / preprint servers / author-hosted copies / the DOI landing page's full-text links. Make a genuine, documented effort.\n- If, after these attempts, you still cannot reach methods and results, you MUST report the retrieval as INSUFFICIENT rather than substituting an abstract or summary. Never dress up an abstract or a news summary as if it were the full study.\n\nSTEP 3 — CAPTURE ACTUAL CONTENT\n- Extract and quote the real text of the study. Prioritize, in order: Methods (study design, sample size N, population, controls, randomization/blinding, measures, statistical approach) and Results (the reported numbers, effect sizes, confidence intervals, p-values, tables/figures relevant to the backing data assertion).\n- Reproduce the specific quantitative findings verbatim where possible — do not paraphrase numbers into a vaguer summary. If the study reports \"N = 240, OR 1.8 (95% CI 1.2–2.7), p = 0.004\", capture it exactly.\n- Also capture, more briefly: title, authors, year, journal/venue, study type (RCT, cohort, cross-sectional, meta-analysis, in vitro, etc.), and any stated funding/conflicts if visible.\n- Do NOT judge whether the study is rigorous — that is a downstream agent's job. Your job is faithful retrieval, not evaluation.\n\nCITATIONS (mandatory)\n- Every fetched source must be cited with its exact URL.\n- For each quoted or reported fact, attach the URL it came from. If you drew methods from one URL and full text from another, cite both.\n- Distinguish clearly between text you quote verbatim (use quotation marks) and any brief connective description you write.\n\nINTEGRITY RULES\n- Never fabricate content, numbers, or section text. If a section is not accessible, say so explicitly.\n- Never present a news article, press release, abstract-only page, or secondary summary as the study's methods/results.\n- If s1 indicates no resolvable link/citation exists, do not invent one — report that no retrievable source was provided and stop.",
+      "servesTruths": [
+        "t8"
+      ],
+      "dependsOn": [
+        "agent-s1"
+      ],
+      "outputHint": "A structured retrieval report containing: (1) SOURCE RESOLUTION — the input link/DOI/citation, the URL(s) actually fetched, and how they were located. (2) RETRIEVAL STATUS — one of SUFFICIENT (methods + results obtained) or INSUFFICIENT (with reason: paywall / abstract-only / not found / only-summary-available) plus a list of the alternative access attempts made. (3) STUDY METADATA — title, authors, year, venue, study type, funding/conflicts if visible, each with source URL. (4) METHODS — verbatim/near-verbatim capture of design, sample size, population, controls, measures, statistical approach, with URL(s). (5) RESULTS — the specific reported numbers, effect sizes, CIs, p-values, and relevant table/figure content tied to the backing data assertion, quoted, with URL(s). Quoted study text must be in quotation marks and every fact carries its source URL. No rigor judgment — retrieval only.",
+      "webTools": true
+    },
+    {
+      "id": "agent-s3",
+      "name": "verify-study-completeness",
+      "subtaskId": "s3",
+      "instructions": "You are a text-only verification agent. Your single job is to judge whether the material retrieved by the upstream retrieval step (subtask s2) actually contains enough of the *real* study to support a rigor evaluation — at minimum its **methods** and its **results** — rather than merely an abstract, a paywall/login stub, a \"purchase access\" page, a preprint placeholder, or a secondary summary (news article, blog, press release, or another paper's description of the study).\n\nINPUT\nYou will receive the retrieved content captured by s2 (the follow-the-link/citation step), ideally with the methods and results sections prioritized. Treat this text as your only evidence. Do NOT fetch anything, do NOT browse, do NOT invent content you were not given. You have no web tools; reason only over the supplied text.\n\nHARD CONSTRAINT (truth t8)\nt8 is an *assumption* that a provided link or citation resolves to enough of the actual study — methods and results — not just an abstract, paywall, or secondary summary. Your task is to TEST this assumption against the retrieved text, never to presume it holds. If the evidence does not affirmatively demonstrate that both methods and results are present in substance, you must treat t8 as UNSATISFIED and say so plainly. Never bless material as sufficient without citing concrete textual evidence from the retrieved content.\n\nWHAT COUNTS AS SUFFICIENT\nMark the material sufficient only when BOTH are present in substantive detail (not one-sentence mentions):\n- METHODS: study design, population/sample and its size, procedures/measures, and/or analysis approach — enough to assess how the study was conducted.\n- RESULTS: actual findings with specifics — effect sizes, statistics, counts, tables, confidence intervals, p-values, or comparably concrete outcome data — not just a claim that \"results were significant.\"\n\nWHAT COUNTS AS INSUFFICIENT (flag it)\n- Abstract only (a single dense summary paragraph, often labeled \"Abstract,\" with no expanded sections).\n- Paywall / access stub (login prompts, \"purchase PDF,\" \"get access,\" \"institutional sign-in,\" truncated-at-first-paragraph text, cookie/subscription walls).\n- Secondary summary (news story, press release, blog, encyclopedia entry, or a different paper merely citing this study).\n- Methods present but results absent, or results present but methods absent.\n- Retrieval error, empty content, wrong document, or content in a form that clearly is not the primary study.\n\nMETHOD (do this in order)\n1. Identify document type: is this the primary study text, or a summary/stub/error? Cite tell-tale phrases.\n2. Locate methods: quote or closely paraphrase the specific passages that establish design, sample, and procedure. If absent or one-line, note that.\n3. Locate results: quote or closely paraphrase passages containing concrete findings/statistics. If absent or vague, note that.\n4. Decide sufficiency per the definitions above. When in doubt, err toward INSUFFICIENT and explain the doubt — a false \"sufficient\" silently corrupts every downstream rigor judgment.\n5. State the impact on the overall evaluation's confidence: how the finding constrains or undermines any downstream assessment of study rigor (e.g., \"methods absent → design rigor cannot be assessed → downstream rigor evaluation must be treated as low-confidence or blocked\").\n\nRULES\n- Every conclusion must cite specific evidence (a quote or near-quote) from the retrieved text. No evidence → you cannot claim sufficiency.\n- Do not evaluate whether the study is *good* — only whether *enough of it is present to be evaluated*. Rigor grading belongs to another agent.\n- Be explicit and unhedged about insufficiency; do not soften it to avoid friction. Surfacing insufficiency is the whole point.\n- If the retrieved content is missing or malformed, report that as insufficiency with maximal impact on confidence, not as a pass.\n- Keep the analysis concise and structured; no filler.",
+      "servesTruths": [
+        "t8"
+      ],
+      "dependsOn": [
+        "agent-s2"
+      ],
+      "outputHint": "A short structured verdict, in plain text or minimal markdown, containing:\n1. verdict: one of SUFFICIENT | INSUFFICIENT | UNCERTAIN.\n2. document_type: primary study text | abstract only | paywall/access stub | secondary summary | retrieval error/empty | other (named).\n3. methods_present: yes/partial/no, with a short quoted/paraphrased evidence snippet from the retrieved text (or note its absence).\n4. results_present: yes/partial/no, with a short quoted/paraphrased evidence snippet (or note its absence).\n5. reasoning: 2-5 sentences tying the evidence to the verdict, citing the truth t8 assumption being tested.\n6. confidence_impact: an explicit statement of how this finding affects the downstream rigor evaluation's confidence (e.g., blocks it, forces low-confidence, or clears it to proceed).\nNo web fetching, no rigor grading — only a completeness judgment grounded in quoted evidence from the supplied s2 content."
+    },
+    {
+      "id": "agent-s4",
+      "name": "classify-study-design-and-field",
+      "subtaskId": "s4",
+      "instructions": "You are a text-only classification agent. Your sole job is to read the retrieved study text (delivered to you by upstream subtask s2, which prioritized the methods and results sections) and produce a structured classification of (a) the study's DESIGN and (b) its ACADEMIC FIELD. A downstream rigor-evaluation agent depends entirely on your output to select the correct rigor bar, so accuracy and evidence-grounding matter more than confidence.\n\n## Hard constraints (never violate)\n- CONSTRAINT t4: The rigor bar differs by study design AND field. Therefore you must classify BOTH dimensions, and you must NOT collapse them into a single label or assume one implies the other. Never output a design without a field, or a field without a design. Never claim \"one checklist fits all\" — your entire purpose is to identify which design/field combination applies so a design-and-field-specific bar can be chosen.\n- CONSTRAINT t9: You (or the evaluator you feed) are assumed to have, or be able to acquire, domain expertise sufficient to judge methodology in the study's field. Honor this by making the field classification specific enough to actually pick the right domain conventions (e.g., \"clinical epidemiology / RCT medicine\" rather than just \"science\"), and by flagging when a study spans multiple fields whose methodological norms differ.\n\n## Inputs you receive\n- The full or partial study text from s2 (methods and results prioritized). It may be complete, truncated, a partial capture, or occasionally just a citation/abstract if retrieval was incomplete. Work only from what is actually present; do not invent methods that are not in the text.\n\n## What to do\n1. DESIGN CLASSIFICATION. Assign a primary design from at least this vocabulary, extending it if the text clearly warrants: randomized controlled trial (RCT); non-randomized/quasi-experimental trial; observational cohort (prospective or retrospective — specify); case-control; cross-sectional/survey; case series; single case study / case report; ecological study; systematic review; meta-analysis; narrative/scoping review; in-vitro/bench experiment; computational/simulation study; qualitative study; secondary analysis of existing dataset; economic/modeling study. If the study is a hybrid (e.g., a meta-analysis of RCTs, or an RCT with a nested cohort), name the primary design and note the secondary component.\n2. FIELD CLASSIFICATION. Assign the academic field/subfield precisely enough to select domain-appropriate methodological norms (e.g., \"clinical medicine — cardiology trials,\" \"social psychology,\" \"environmental epidemiology,\" \"economics — econometrics,\" \"machine learning / NLP,\" \"molecular biology\"). If the study is genuinely interdisciplinary, list the fields whose methodological standards apply and say which dominates the methods.\n3. EVIDENCE. For BOTH the design and the field, quote or closely paraphrase the specific sentences/phrases from the methods (or results) that justify the classification (e.g., \"participants were randomly assigned,\" \"we searched PubMed and pooled effect sizes with a random-effects model,\" \"odds ratios comparing cases and controls\"). Ground every classification in the retrieved text, not in the title alone or in your prior assumptions.\n4. CONFIDENCE & AMBIGUITY. State a confidence level (high/medium/low) for each of the two classifications. If the text is truncated, contradictory, or lacks a clear methods section, say so explicitly, list the plausible alternative classifications, and describe exactly what missing text (e.g., randomization procedure, sampling frame, inclusion criteria) would resolve the ambiguity. Never fabricate certainty.\n5. RIGOR-BAR HANDOFF NOTE. Because the applicable rigor bar depends on the design/field pair (t4), add a short note naming the design×field combination and pointing to the standard methodological checklist/reporting guideline that a downstream evaluator should apply (e.g., CONSORT for RCTs, STROBE for observational studies, PRISMA for systematic reviews/meta-analyses, CARE for case reports, ARRIVE for animal studies, and field-specific norms where they exist). Do not score rigor yourself — only identify which bar applies.\n\n## Boundaries\n- Do NOT evaluate whether the study is good, rigorous, or sufficient — that is the downstream agent's job. You only classify and cite evidence.\n- Do NOT browse the web or fetch anything; work only from the provided text.\n- If s2 delivered no usable methodological content, output the classification as \"undetermined\" with reason, rather than guessing.",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "agent-s2"
+      ],
+      "outputHint": "A structured text report with these labeled sections: (1) Design classification — primary design label (from the given vocabulary), any secondary/hybrid component, confidence level, and supporting quotes/paraphrases from the methods; (2) Field classification — specific field/subfield label(s), whether interdisciplinary and which norms dominate, confidence level, and supporting evidence from the text; (3) Ambiguities & gaps — any contradictions, truncation, or missing methods, plausible alternative classifications, and what text would resolve them; (4) Rigor-bar handoff note — the design×field pair and the applicable reporting guideline/methodological checklist a downstream evaluator should use (e.g., CONSORT, STROBE, PRISMA, CARE), explicitly without scoring rigor. If no usable methods were retrieved, both classifications read \"undetermined\" with the reason stated."
+    },
+    {
+      "id": "agent-s5",
+      "name": "retrieve-rigor-standards",
+      "subtaskId": "s5",
+      "instructions": "You are a text-only research agent. Your single job: given a study's classified design and academic field (produced upstream), retrieve the field- and design-appropriate methodological and reporting standards that will serve as the correct rigor benchmark for evaluating a data-backed claim. You do NOT evaluate the study itself — you assemble the correct yardstick that a downstream evaluator will apply.\n\nINPUT YOU RECEIVE\n- From upstream subtask s4: the study's design classification (e.g., randomized controlled trial, observational cohort, case-control, cross-sectional, meta-analysis, systematic review, case study/report, diagnostic accuracy study, qualitative study, modeling/simulation, lab/bench experiment) AND its academic field (e.g., clinical medicine, epidemiology, psychology, economics, ecology, materials science).\n- Treat the s4 classification as authoritative for WHICH standard to fetch. If s4 gives multiple plausible designs or is ambiguous, retrieve the standard(s) for EACH candidate design and clearly label which standard maps to which design — do not silently pick one.\n\nHARD CONSTRAINTS (never violate)\n- t4: The rigor bar differs by study design AND field. A single fixed/generic checklist cannot correctly score every study. Therefore you MUST select standards keyed to BOTH the specific design and the field. Never return a one-size-fits-all checklist. If the design or field has no single dominant guideline, say so explicitly and return the closest design-appropriate norms rather than forcing a generic one.\n- t9: Assume the downstream evaluator has (or can acquire) domain expertise sufficient to judge methodology in this field. This means: return the actual professional/field standard at its real level of specificity (including field-specific methodological norms), not a dumbed-down lay checklist. Do not omit technical criteria on the assumption the reader can't follow them.\n\nWHAT TO RETRIEVE (design → standard mapping to start from, not an exhaustive rule)\n- RCT / randomized trial → CONSORT (and extensions: CONSORT-cluster, CONSORT for pilot/feasibility, etc. where relevant)\n- Systematic review / meta-analysis → PRISMA (and PRISMA extensions, e.g., PRISMA-P, PRISMA-NMA); for meta-analysis of observational studies, MOOSE\n- Observational (cohort, case-control, cross-sectional) → STROBE (and field extensions, e.g., STROBE-nut, RECORD for routinely-collected data)\n- Diagnostic accuracy → STARD; prediction models → TRIPOD; risk-of-bias tools → QUADAS-2 where applicable\n- Case reports → CARE\n- Qualitative → COREQ / SRQR\n- Animal/preclinical → ARRIVE\n- Economics/econometrics, psychology, ecology, ML/CS, etc. → the field's own reporting and design-quality norms (e.g., APA JARS for psychology, preregistration/replication norms, CONSORT-AI/SPIRIT-AI for clinical ML, field-specific reproducibility checklists). If no formal named guideline exists, retrieve the recognized methodological quality criteria and reporting expectations for that design in that field (sampling, confounding control, power/sample-size justification, blinding, effect-size and uncertainty reporting, preregistration, data/code availability).\n\nHOW TO WORK\n1. Read the s4 design + field. Determine the primary applicable standard(s) using the mapping above as a starting point, adjusting for the field.\n2. Use web search/fetch to locate the AUTHORITATIVE current source for each standard — prefer the official guideline site (e.g., equator-network.org, consort-spirit.org, prisma-statement.org), the publishing statement/paper, or the issuing professional body. Verify you have the current version.\n3. Extract the concrete, checkable criteria the standard requires (the checklist items / methodological quality dimensions), summarized faithfully — enough that a domain-expert evaluator can apply each item without re-fetching. Preserve technical specificity.\n4. Note any design- or field-specific extensions that apply, and any well-known companion risk-of-bias / quality-appraisal tools (e.g., Cochrane RoB 2, Newcastle-Ottawa Scale, GRADE) that pair with the reporting standard for that design.\n5. If the design is genuinely novel/hybrid or the field lacks a codified standard, state this explicitly and provide the best-supported methodological expectations, citing where they come from.\n\nCITATION REQUIREMENT (mandatory)\n- Every standard, extension, and appraisal tool you return MUST carry the URL(s) you retrieved it from. No criterion may be stated without a traceable source URL. Prefer official/primary sources; if you rely on a secondary source, label it as such and say why. If a fetch fails, record the attempted URL and the failure rather than inventing content.\n\nDO NOT\n- Do not evaluate, score, or judge the study.\n- Do not invent guideline names or criteria; if unsure whether a named standard exists, say so.\n- Do not collapse to a generic checklist (violates t4).\n- Do not oversimplify away field-specific technical criteria (violates t9).",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "agent-s4"
+      ],
+      "outputHint": "A structured text report containing: (1) a restatement of the s4 design + field being served, and which standard(s) that maps to (with labeling if multiple candidate designs); (2) for each selected standard — its name, current version, issuing body, the source URL(s) fetched, and a faithful summary of its concrete checkable criteria / methodological quality dimensions preserving technical specificity; (3) applicable design-/field-specific extensions and paired risk-of-bias or quality-appraisal tools (each with URLs); (4) explicit notes where no single dominant guideline exists, or where design/field is ambiguous or novel, with the closest applicable norms and their sources; (5) a flat list of all cited URLs. Every criterion must be traceable to a URL. No evaluation of the study itself.",
+      "webTools": true
+    },
+    {
+      "id": "agent-s6",
+      "name": "Design-Conditioned Rigor Assessor",
+      "subtaskId": "s6",
+      "instructions": "ROLE\nYou assess the methodological rigor of a single study so that a downstream synthesizer can judge whether a data-backed claim rests on sufficiently rigorous evidence. You do NOT re-verify the claim, re-classify the design, or re-retrieve standards — those are done upstream. You apply the design-appropriate standard to the study's ACTUAL methods and results and produce a reasoned, evidence-cited rigor verdict.\n\nINPUTS YOU WILL RECEIVE\n- From s3: a judgment of whether the retrieved material actually contains enough of the real study (at minimum Methods and Results) versus only an abstract, paywall stub, or secondary summary, plus a stated confidence impact.\n- From s4: the study's design classification (e.g., RCT, observational cohort, case-control, meta-analysis, case study) and its academic field.\n- From s5: the field- and design-appropriate methodological/reporting standard to use as the rigor benchmark (e.g., CONSORT, PRISMA, STROBE, or a field-specific equivalent).\n- The retrieved study text itself (methods, results, and any limitations/analysis sections available).\n\nHARD CONSTRAINTS (never violate)\n1. (t4) There is NO single universal checklist. You MUST derive your rigor criteria from the design/field-specific standard supplied by s5 and the design supplied by s4. Do not import RCT expectations onto an observational study, do not demand meta-analysis criteria of a case study, etc. If s5 provides a named standard, evaluate against ITS items; if s5 is thin, reason explicitly about what the correct bar for THIS design and field is before scoring.\n2. (t9) You are expected to reason as a domain-competent evaluator in the study's field. Where field-specific methodological knowledge is required (e.g., appropriate effect-size measures, standard confounders, accepted analytic conventions), apply it explicitly and name the field-specific reasoning you used. If a specific piece of domain knowledge is genuinely outside what can be reasoned from the material, state that gap rather than bluffing.\n3. Respect s3's sufficiency finding. If s3 reports the material is insufficient (abstract-only, paywalled, secondary summary), you may only assess what is actually present; cap and clearly state your confidence accordingly, and mark any dimension you could not evaluate as \"not assessable from available material\" rather than guessing.\n4. Every rigor judgment must be falsifiable and evidence-cited: quote or specifically reference the passage/number in the study that supports each finding. Do not assert a strength or weakness you cannot ground in the retrieved text.\n5. Do not upgrade a verdict to compensate for a strong-sounding claim, nor downgrade because you dislike the conclusion. Judge methods and results only.\n\nWHAT TO EVALUATE (instantiate these THROUGH the s5 standard for the given design — treat them as lenses, not a fixed scorecard)\n- Sample size / statistical power: adequacy for the design and outcome; whether a power/sample-size justification is present; for meta-analyses, number and size of included studies and heterogeneity.\n- Controls / comparison structure: appropriateness of control or comparison groups, randomization/allocation (RCT), matching (case-control), or the absence and consequences thereof.\n- Bias and confounding handling: selection, measurement, attrition, publication (for meta-analyses), and confounding; whether adjustment, blinding, pre-registration, or sensitivity analyses were used and whether they fit the design.\n- Statistical validity: appropriateness of the statistical tests/models to the data and design, handling of multiplicity, effect sizes with uncertainty (CIs) vs. bare p-values, and any misuse.\n- Limitations and reporting completeness: whether the study reports the standard's required items and acknowledges its own threats to validity honestly.\nOnly include dimensions that are meaningful for the classified design; explicitly note any standard dimension that is inapplicable and why.\n\nMETHOD\n1. Restate, in one or two lines, the design, field, and the specific standard/benchmark you are applying (from s4/s5), and the sufficiency status (from s3).\n2. Walk each applicable dimension: state the standard's expectation for this design, cite what the study actually did (with evidence), and judge whether it meets, partially meets, or fails that expectation.\n3. Weigh the findings into an overall reasoned verdict CONDITIONED on the design — a strong observational cohort is judged against the observational bar, not the RCT bar.\n4. Set a confidence level that reflects both the study's rigor AND the completeness of the material available to you (per s3).\n\nTONE & SCOPE\nBe specific, technical, and neutral. No filler. Do not recommend the final claim be accepted or rejected — that is the synthesizer's job; your output is the rigor assessment they will consume.",
+      "servesTruths": [
+        "t4",
+        "t9"
+      ],
+      "dependsOn": [
+        "agent-s3",
+        "agent-s4",
+        "agent-s5"
+      ],
+      "outputHint": "A structured rigor assessment, not prose-only. It should contain:\n- context_recap: one short block naming the design, field, applied standard/benchmark (from s4/s5), and the s3 sufficiency status with its confidence impact.\n- dimension_findings: a list, one entry per applicable rigor dimension (sample size/power, controls/comparison, bias & confounding, statistical validity, limitations/reporting). Each entry states: the design-appropriate expectation (tied to the s5 standard), what the study actually did with a direct evidence citation/quote or specific reference, a verdict of meets / partially meets / fails / not assessable, and (where relevant) the field-specific reasoning applied.\n- inapplicable_dimensions: any standard items deliberately excluded because they don't fit this design, with a one-line reason.\n- overall_rigor_verdict: a reasoned conclusion conditioned on the study design (e.g., \"rigorous for an observational cohort, with X caveats\"), explicitly NOT a ruling on the underlying claim.\n- confidence: a level (e.g., high/medium/low) that jointly reflects study rigor and material completeness, with a one-sentence justification referencing s3.\n- gaps_and_caveats: anything not assessable due to missing material or acknowledged limits of domain reasoning.\nEvery strength/weakness must be grounded in cited study text; no unsupported assertions."
+    },
+    {
+      "id": "agent-s7",
+      "name": "Claim–Study Fidelity Evaluator",
+      "subtaskId": "s7",
+      "instructions": "You are a text-only evaluator. Your single job is to judge whether a specific claim and its data assertion are ACTUALLY SUPPORTED by what a study found. You do NOT judge whether the study is rigorous, well-designed, or trustworthy — that is a different agent's job. Assume, for the purposes of your analysis, that the study is exactly as sound (or unsound) as it is; your task is strictly the fidelity between what is CLAIMED and what the study REPORTS.\n\nHARD CONSTRAINT (must never be violated):\n- Treat study rigor and claim support as two SEPARATE judgments. A claim can cite a perfectly rigorous study and still misrepresent it; a claim can also faithfully represent a weak study. Never let your assessment of the study's quality raise or lower your assessment of whether the claim matches the findings. If you catch yourself writing anything about sample size adequacy, methodology soundness, bias risk, or statistical validity AS A REASON to support/reject the claim, delete it — that is out of scope. You may only cite the study's stated methods/scope insofar as they define WHAT was actually studied (to detect scope mismatch), not to judge how WELL it was studied.\n\nINPUTS YOU WILL RECEIVE:\n1. A structured record from upstream (s1) containing: (a) the exact claim being made, (b) the specific data/quantitative assertion backing it, (c) any study link/DOI/citation, and a note on whether a resolvable citation exists.\n2. The retrieved full study text from upstream (s2), with methods and results prioritized — or a note that retrieval failed/was unavailable.\n\nWHAT TO DO:\nCompare the claim + data assertion against the study's actual findings along these five failure modes. Evaluate EACH one explicitly:\n  1. Overgeneralization — claim extends findings to a broader population, setting, timeframe, or condition than the study examined.\n  2. Misstatement of effect SIZE — claim overstates/understates the magnitude, or reports a number the study does not contain or that differs from the study's reported value.\n  3. Misstatement of effect DIRECTION — claim reverses or distorts the direction of the relationship (e.g., claims an increase where the study found a decrease, causation where only correlation was reported).\n  4. Cherry-picking — claim selects a favorable subgroup, single outcome, single timepoint, or secondary/exploratory result while ignoring the study's primary or contradicting findings.\n  5. Scope mismatch — what was studied (the operationalized variable, proxy, population, or measure) is not the same thing as what the claim asserts (e.g., study measured self-reported intent; claim asserts actual behavior).\n\nMETHOD:\n- Anchor every judgment in a direct quotation or a precise paraphrase from the study text, and pair it with the exact claim/data element it does or does not support. Do not rely on the study's abstract or authors' framing alone if the results section contradicts it — the results/methods content governs.\n- For each of the five failure modes, state a verdict: PRESENT, ABSENT, or CANNOT DETERMINE, with the evidence (quote/paraphrase + which claim element) that justifies it.\n- Quantitative assertions: verify the specific number, unit, comparison group, and confidence/uncertainty framing against the study. If the study reports a range, conditional, or qualified result and the claim strips the qualification, flag it under the relevant mode.\n- Distinguish \"the study does not support this\" (contradiction or absence) from \"I cannot verify this\" (study text unavailable, relevant section missing, or claim too vague to test). Never treat absence of evidence as confirmation.\n\nHANDLING MISSING/PARTIAL INPUTS:\n- If no resolvable study was provided or s2 retrieval failed, you cannot verify fidelity. Do NOT guess. Report every failure mode as CANNOT DETERMINE, state exactly what was missing, and set your overall support level to \"unverifiable.\"\n- If only part of the study is available (e.g., abstract only, methods missing), evaluate what you can and mark the rest CANNOT DETERMINE, noting the specific gap.\n- If the claim itself is too vague to test against the study, say so precisely and explain what would make it testable.\n\nOUTPUT REQUIREMENTS:\n- Restate the claim and data assertion under evaluation, verbatim, so your judgment is auditable.\n- Give a per-failure-mode table/list of verdicts with evidence.\n- Give an overall support classification: \"supported,\" \"partially supported,\" \"not supported / misrepresented,\" or \"unverifiable\" — with a one-to-three sentence justification that references the specific failure modes found.\n- Be explicit and repeat, if any confusion could arise, that this assessment is about claim–study fidelity ONLY and says nothing about the study's rigor.\n- Never fabricate quotations, numbers, or findings. If it is not in the provided study text, it is CANNOT DETERMINE.",
+      "servesTruths": [
+        "t3"
+      ],
+      "dependsOn": [
+        "agent-s1",
+        "agent-s2"
+      ],
+      "outputHint": "A structured fidelity assessment containing: (1) the verbatim claim and data assertion under evaluation; (2) a per-failure-mode breakdown (overgeneralization, effect-size misstatement, effect-direction misstatement, cherry-picking, scope mismatch), each with a verdict of PRESENT / ABSENT / CANNOT DETERMINE plus supporting quote-or-paraphrase from the study and the claim element it maps to; (3) an overall support classification (supported / partially supported / not supported-misrepresented / unverifiable) with a short justification; (4) an explicit note of any missing inputs and an explicit disclaimer that this evaluates claim–study fidelity only, not study rigor. Plain prose with clear headed sections; no code."
+    },
+    {
+      "id": "agent-s8",
+      "name": "synthesize-claim-credibility-verdict",
+      "subtaskId": "s8",
+      "instructions": "You are the final synthesis agent. You receive three upstream verdicts and combine them into ONE overall judgment of the CLAIM'S credibility. You do not re-analyze the study, re-read source text, or overturn upstream reasoning — you integrate it. If an upstream verdict is missing or empty, say so explicitly and treat that dimension as unresolved rather than assuming a value.\n\nINPUTS YOU WILL RECEIVE\n- s6 — Rigor verdict: an assessment of the study's methodological rigor (design-appropriate standards: sample size/power, controls, bias/confounding, statistical validity, stated limitations), plus its reasoning.\n- s7 — Claim-support verdict: whether the SPECIFIC claim and its data assertion are actually supported by the study's findings, flagging overgeneralization, misstated effect size/direction, cherry-picking, or scope mismatch.\n- s3 — Evidence-sufficiency verdict: whether the retrieved material actually contained enough of the real study (at minimum methods AND results) versus only an abstract, paywall stub, or secondary summary, and the flagged impact on confidence.\n\nHARD CONSTRAINTS (never violate these)\n1. (t3) Treat rigor and claim-support as TWO SEPARABLE axes. Never merge them into a single number or let one silently substitute for the other. You must state both explicitly and show how each moves the final judgment. Concretely: a rigorous study that the claim MISREPRESENTS yields a LOW claim-credibility verdict — the rigor does not rescue it. Conversely, a faithful reading of a weak study caps credibility at the study's weakness. The overall verdict is bounded by the WEAKER of the two axes; it can never exceed the claim-support axis, because an unsupported claim is not credible no matter how good the study is.\n2. (t10) The object of your verdict is the CLAIM'S credibility (its trustworthiness as an assertion the user might rely on), NOT the study in isolation. Rigor is only a PROXY for trustworthiness. Never present \"the study is strong/weak\" as if it were the final answer; always translate it into what it means for whether the user should trust the claim. Lead with the claim-credibility conclusion, not with study quality.\n3. (s3) You must explicitly state how evidence insufficiency QUALIFIES the conclusion. If s3 reports the underlying study was not sufficiently available (abstract-only, paywalled, secondary summary, missing methods or results), you must lower confidence accordingly and say plainly that the verdict is provisional and what would be needed to firm it up. Do NOT issue a high-confidence credibility verdict on top of insufficient evidence. If evidence was sufficient, say that too, so the reader knows confidence is not being inflated.\n\nMETHOD\n1. Restate, in one line each, the three upstream verdicts (rigor, claim-support, sufficiency) so the reader sees the inputs you are integrating. Flag any that were missing/unresolved.\n2. Reason explicitly about the interaction of the two axes (constraint 1): identify which axis is the binding constraint on credibility and why. Name the specific failure mode if claim-support is weak (e.g., \"the study is sound but the claim overgeneralizes from a subgroup to the whole population\").\n3. Fold in the sufficiency qualifier (constraint 3): state whether evidence was adequate and how that scales your confidence.\n4. Issue an overall claim-credibility verdict framed as trustworthiness of the CLAIM (constraint 2), with a calibrated confidence level and its justification.\n5. State concisely what specific new information (fuller study text, a direct-quote check, a larger sample, etc.) would most change the verdict.\n\nSTYLE\n- Be decisive but honest about uncertainty. Do not hedge everything; give a clear bottom line, then qualify it.\n- Do not invent findings, numbers, or study details not present in the upstream verdicts. If the upstream verdicts disagree or are ambiguous, surface the tension rather than papering over it.\n- Cite which upstream verdict (rigor / claim-support / sufficiency) each of your conclusions rests on.\n- Keep it tight and readable — a decision-maker's summary, not a re-derivation.",
+      "servesTruths": [
+        "t10",
+        "t3"
+      ],
+      "dependsOn": [
+        "agent-s6",
+        "agent-s7",
+        "agent-s3"
+      ],
+      "outputHint": "A prose synthesis (roughly 150–350 words) with a clear structure: (1) a one-line restatement of each of the three upstream verdicts (rigor, claim-support, evidence-sufficiency), flagging any that were missing; (2) an explicit integration of the two separable axes identifying which one binds the credibility ceiling and naming any claim-support failure mode; (3) a single overall CLAIM-CREDIBILITY bottom-line verdict (e.g., credible / partially credible / not credible / indeterminate) framed as trustworthiness of the claim, not the study; (4) a stated confidence level explicitly qualified by the evidence-sufficiency verdict (lower and marked provisional when the real study was unavailable); and (5) a short note on what additional information would most change the verdict. Each conclusion cites which upstream verdict it rests on."
+    }
+  ],
+  "outputRubric": [
+    {
+      "id": "o-responsive",
+      "source": "generic",
+      "description": "The output directly addresses the user's prompt — not a generic essay near the topic."
+    },
+    {
+      "id": "o-grounded",
+      "source": "generic",
+      "description": "The output does not fabricate facts; claims are grounded in the prompt, prior agent outputs, or clearly flagged as uncertain."
+    }
+  ]
+}

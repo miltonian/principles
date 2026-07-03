@@ -1,0 +1,117 @@
+{
+  "objective": "evaluate whether a vendor proposal satisfies our security requirements",
+  "criteria": [
+    {
+      "id": "c-responsive",
+      "source": "generic",
+      "description": "The deliverable directly addresses the stated objective — not a generic treatment near the topic.",
+      "evidenceGuidance": "PASS only if the deliverable evaluates THIS specific vendor proposal against THIS organization's security requirements — not a generic essay on vendor security or how-to-evaluate-vendors advice. Grader must find: (1) references to concrete, named requirements drawn from the organization's own security-requirements source; (2) references to concrete content from the specific vendor proposal (vendor name, product, or quoted proposal text); (3) an actual assessment/verdict, not just background. FAIL if the text could be copy-pasted for any other vendor or any other requirement set, if it discusses security topics generally without producing a proposal-vs-requirements assessment, or if it substitutes advice ('you should verify encryption') for a finding."
+    },
+    {
+      "id": "c-grounded",
+      "source": "generic",
+      "description": "Claims in the deliverable are grounded in provided material or clearly flagged as uncertain; nothing is fabricated.",
+      "evidenceGuidance": "Scope: this criterion targets fabrication and honesty about uncertainty ONLY — it does NOT re-check the per-verdict citation discipline for 'met' labels (that is owned exclusively by c-s3) nor the treatment of unaddressed requirements (owned by c-s2/c-s3). PASS only if every substantive claim about what the proposal says is either traceable to provided material (quoted or locator-referenced proposal passages, or named requirement text) OR explicitly flagged as uncertain (e.g., 'proposal does not state', 'indeterminate — ambiguous wording'). FAIL if the grader finds any fabricated capability, invented proposal quote, or a factual assertion attributed to the proposal that has no basis in the provided material. Spot-check: pick 2-3 asserted facts about the proposal — each must be backed by a citation or an explicit uncertainty flag. Any invented detail = FAIL."
+    },
+    {
+      "id": "c-s1",
+      "source": "subtask",
+      "subtaskId": "s1",
+      "description": "The deliverable adequately addresses: From the organization's documented security-requirements source, extract and enumerate each requirement as a discrete, individually-identifiable item. Assign a stable identifier to each, capture its exact criterion text, and label it mandatory or optional. Freeze this list as the fixed reference set used for the rest of the evaluation.",
+      "evidenceGuidance": "PASS only if the deliverable contains an enumerated reference list of requirements where each item has: (1) a stable identifier (e.g., REQ-01, SR-1); (2) the exact/verbatim criterion text of the requirement; and (3) a mandatory-or-optional label. The list must be drawn from the organization's documented security-requirements source and presented as the fixed set used for the rest of the evaluation. FAIL if requirements are paraphrased loosely with no identifiers, if mandatory/optional classification is missing, if items are not discrete (multiple requirements merged into one line), or if the source of the requirements is not the organization's own documented requirements."
+    },
+    {
+      "id": "c-s2",
+      "source": "subtask",
+      "subtaskId": "s2",
+      "description": "The deliverable adequately addresses: For each enumerated requirement, scan the vendor proposal and collect the specific passages or artifacts (with locators/quotes) that explicitly address it. Record the proposal's stated claim verbatim, taking those claims at face value; where the proposal does not explicitly and verifiably address a requirement, record 'no supporting passage found' rather than inferring coverage.",
+      "evidenceGuidance": "Scope: this criterion grades the EVIDENCE-COLLECTION step only — the raw record of what the proposal says (or does not say) per requirement. It does NOT grade the verdict assigned to each requirement (that is c-s3). PASS only if, for each enumerated requirement from c-s1, the deliverable records the proposal evidence: specific passages/artifacts with locators or verbatim quotes capturing the proposal's stated claim at face value, OR an explicit 'no supporting passage found'. FAIL if evidence-gathering is done for only some requirements, if proposal claims are editorialized/rebutted instead of recorded verbatim at this step, if quotes lack locators, or if requirements with no coverage are left blank rather than marked 'no supporting passage found'."
+    },
+    {
+      "id": "c-s3",
+      "source": "subtask",
+      "subtaskId": "s3",
+      "description": "The deliverable adequately addresses: Assign each requirement its own verdict of met / not-met / indeterminate. Mark 'met' only when a cited passage from the previous step supports it, attaching that citation; mark requirements with no explicit, verifiable coverage as not-met or indeterminate. Produce the complete per-requirement breakdown with one verdict per item.",
+      "evidenceGuidance": "This criterion is the SINGLE home for verdict-value discipline, the 'met'-must-cite rule, and the 'unaddressed → not-met/indeterminate, never inferred' rule. PASS only if a complete per-requirement breakdown exists with exactly one verdict drawn from {met, not-met, indeterminate} per requirement, where: (a) every 'met' has a specific citation attached (a quote, section/page/line locator, or artifact name from the proposal that a reader could look up); and (b) any requirement whose c-s2 record is 'no supporting passage found' — or that otherwise lacks explicit, verifiable coverage — is marked not-met or indeterminate, never 'met' by inference, assumption, benefit-of-the-doubt, or vendor reputation. Grader verifies a one-to-one mapping by counting: the number of verdicts must equal the number of enumerated requirements from c-s1, each appearing exactly once. FAIL if any requirement is missing, has multiple or no verdict, uses a label outside the three-value set, is marked 'met' without an attached proposal citation (or with only a vague 'the proposal' reference or a citation to the requirement document instead of the proposal), or is marked 'met' despite lacking explicit verifiable coverage."
+    },
+    {
+      "id": "c-s4",
+      "source": "subtask",
+      "subtaskId": "s4",
+      "description": "The deliverable adequately addresses: Reduce the per-requirement breakdown into an overall verdict: 'satisfies' only if every mandatory requirement is met; if any single mandatory requirement is not-met or indeterminate, conclude 'does not satisfy'. Present the overall verdict together with the full per-requirement breakdown, never as a standalone aggregate.",
+      "evidenceGuidance": "This criterion is the SINGLE home for the aggregation logic and the 'no standalone aggregate without breakdown' rule. PASS only if the deliverable presents an overall verdict computed by the stated rule: 'satisfies' iff every mandatory requirement is met; 'does not satisfy' if any single mandatory requirement is not-met or indeterminate. The overall verdict must appear together with the full per-requirement breakdown, and the grader must be able to confirm the overall conclusion is consistent with the individual verdicts (check the mandatory items). FAIL if the overall verdict contradicts the breakdown (e.g., 'satisfies' while a mandatory item is not-met/indeterminate), if it is presented as a standalone aggregate without the accompanying breakdown, or if the mandatory-only aggregation logic is not applied."
+    }
+  ],
+  "truths": [
+    {
+      "id": "t1",
+      "type": "definition",
+      "statement": "\"Security requirements\" denotes a specific, enumerable set of individually-identifiable controls or criteria the organization mandates, not a general notion of being 'secure'.",
+      "rationale": "Every verdict depends on a fixed referent. If 'requirements' is left as a vibe rather than a discrete list, 'satisfies' becomes unfalsifiable and different evaluators reach different conclusions."
+    },
+    {
+      "id": "t4",
+      "type": "constraint",
+      "statement": "Each security requirement must be assessed individually and yield its own met / not-met / indeterminate verdict; no aggregate or overall pass may be issued without the per-requirement breakdown.",
+      "rationale": "An overall 'looks good' cannot be checked or challenged. Per-requirement verdicts are the falsifiable unit; anyone can dispute a specific one against the text."
+    },
+    {
+      "id": "t5",
+      "type": "constraint",
+      "statement": "Every 'met' verdict must cite the specific passage or artifact in the proposal that supports it.",
+      "rationale": "Without evidence a verdict is unfalsifiable opinion. This mirrors the framework's own rule that judges require evidence (judge.ts, Invariant #5)."
+    },
+    {
+      "id": "t6",
+      "type": "constraint",
+      "statement": "Any requirement the proposal does not explicitly and verifiably address must be recorded as not-met or indeterminate, never inferred as satisfied by omission.",
+      "rationale": "Silence is the most common failure mode in vendor evaluations. Treating absence as pass would let a proposal 'satisfy' requirements it never mentions."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "t2",
+      "type": "assumption",
+      "statement": "A proposal \"satisfies\" the requirements only if every mandatory requirement is met; a single unmet mandatory requirement makes the overall verdict 'does not satisfy', regardless of how many others pass.",
+      "rationale": "This is the load-bearing gating rule. It could be wrong — the organization might instead want a weighted/threshold score — so it must be stated explicitly and confirmed, not assumed."
+    },
+    {
+      "id": "t8",
+      "type": "assumption",
+      "statement": "The organization already has a documented, agreed set of security requirements available to the evaluator at evaluation time.",
+      "rationale": "The phrase 'our security requirements' implies they exist, but their being written down and accessible is unverified here. If they are only tacit, the first real task is eliciting them, not evaluating."
+    },
+    {
+      "id": "t9",
+      "type": "assumption",
+      "statement": "Claims in the vendor proposal are taken as accurate for this evaluation unless independently contradicted; the evaluation grades the proposal's stated posture, not the vendor's verified real-world behavior.",
+      "rationale": "A proposal asserting a control is not proof the control exists. This is an honest limit: a 'satisfies' result means 'as claimed', and independent verification (audits, SOC 2, pen tests) is a separate step."
+    },
+    {
+      "id": "t10",
+      "type": "assumption",
+      "statement": "The security requirements remain fixed for the duration of the evaluation.",
+      "rationale": "If requirements change mid-assessment, earlier per-requirement verdicts become stale and the overall verdict is invalid. Proceeding assumes a stable baseline."
+    }
+  ],
+  "rejectedTruths": [
+    {
+      "statement": "The \"vendor proposal\" is a single, fixed artifact (document/response) that is the sole source of the vendor's claims being evaluated.",
+      "attack": "For a security evaluation, the proposal document contains the vendor's self-asserted CLAIMS, not EVIDENCE that those claims are satisfied. Security satisfaction requires independent attestations (SOC 2, ISO 27001, pen-test reports) that are referenced by but external to the proposal narrative. Defining the proposal as the \"sole source\" therefore either (a) forces acceptance of unverified self-claims — defeating the objective of a security evaluation — or (b) is factually false, because real proposals incorporate external attestations and Q&A addenda by reference and are versioned/compound, not a \"single, fixed artifact.\""
+    },
+    {
+      "statement": "Mandatory requirements must be distinguished from optional/preferred ones, and only mandatory requirements may gate the overall verdict.",
+      "attack": "The word \"only\" in \"only mandatory requirements may gate the overall verdict\" is falsified by standard weighted/N-of-M security evaluation: e.g. \"must satisfy at least 3 of 5 preferred hardening controls\" or \"aggregate security score must exceed threshold T.\" Here no individual preferred requirement is mandatory, yet the optional-tier items collectively gate the verdict — a direct counterexample. Defending it forces a retreat (\"the threshold is the mandatory requirement\") that dissolves the clean mandatory/optional partition the claim relies on."
+    }
+  ],
+  "decomposition": {
+    "status": "converged",
+    "iterations": 1
+  },
+  "gradeability": {
+    "status": "converged",
+    "iterations": 2
+  },
+  "generatedAt": "2026-07-03T13:57:53.968Z",
+  "model": "claude-opus-4-8"
+}
