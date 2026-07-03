@@ -14,6 +14,9 @@ export interface Subtask {
   description: string;
   servesTruths: string[]; // Truth ids
   dependsOn: string[]; // Subtask ids
+  /** Model-proposed, judge-verified request for web search/fetch. */
+  needsWeb?: boolean;
+  webJustification?: string;
 }
 
 /** One evaluation criterion in a rubric. */
@@ -47,6 +50,8 @@ export interface AgentSpec {
   servesTruths: string[];
   dependsOn: string[]; // AgentSpec ids
   outputHint: string;
+  /** Present (true) only when the underlying subtask's web request survived judging. */
+  webTools?: boolean;
 }
 
 /** The compiled artifact a generated package runs from. */
