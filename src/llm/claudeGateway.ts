@@ -21,6 +21,13 @@ const DEFAULT_SYSTEM =
 // Identical retried calls succeed, so we retry the whole query bounded.
 const MAX_ATTEMPTS = 3;
 
+// Maximum turns per query. Tools are disabled (tools: [], allowedTools: []),
+// so extra turns only continue the same text/structured-output generation
+// without agent-loop risk. Single turn (1) is too tight — live runs showed
+// legitimate 2-turn completions and an error_max_turns failure on long
+// decompositions. Allow 4 to be safe.
+const MAX_TURNS = 4;
+
 /** Thrown for outcomes that must propagate immediately, never retried. */
 class NonRetryableSdkError extends Error {}
 
@@ -59,7 +66,7 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
           // text transform, no tools, no file access.
           allowedTools: [],
           tools: [],
-          maxTurns: 1,
+          maxTurns: MAX_TURNS,
           outputFormat: { type: "json_schema", schema: jsonSchema },
         },
       }) as AsyncIterable<any>;

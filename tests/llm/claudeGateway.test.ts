@@ -80,7 +80,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(capture.args.options.model).toBe("claude-opus-4-8");
     expect(capture.args.options.systemPrompt).toBe("sys");
     expect(capture.args.options.allowedTools).toEqual([]);
-    expect(capture.args.options.maxTurns).toBe(1);
+    expect(capture.args.options.maxTurns).toBe(4);
     expect(capture.args.options.outputFormat.type).toBe("json_schema");
     expect(capture.args.options.outputFormat.schema.properties.a).toBeDefined();
   });
