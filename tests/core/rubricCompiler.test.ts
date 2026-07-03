@@ -166,3 +166,58 @@ describe("reviseCriteria", () => {
     expect(out).toHaveLength(1);
   });
 });
+
+import { compileRubric } from "../../src/core/rubricCompiler";
+
+describe("compileRubric", () => {
+  it("runs foundations → draft → guidance → meta-check and assembles provenance", async () => {
+    const llm = (async (req: any) => {
+      switch (req.schemaName) {
+        case "typed_truths":
+          return {
+            truths: [
+              { type: "constraint", statement: "must cite sources", rationale: "r" },
+              { type: "fact", statement: "unverifiable-ish claim", rationale: "r" },
+            ],
+          };
+        case "truth_attack":
+          // first truth survives; second demoted to assumption
+          return req.prompt.includes("must cite sources")
+            ? { verdict: "survives", strongestAttack: "none", justification: "solid" }
+            : { verdict: "demote", strongestAttack: "cannot verify", justification: "j" };
+        case "decomposition":
+          return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [] }] };
+        case "rubric_verdicts":
+          // passes BOTH the decomposition judge (d-*) and the meta-judge (m-*):
+          return req.prompt.includes("m-gradeable")
+            ? { verdicts: [
+                { criterionId: "m-gradeable", pass: true, evidence: "all evidence-checkable" },
+                { criterionId: "m-independent", pass: true, evidence: "no overlap found" },
+                { criterionId: "m-scoped", pass: true, evidence: "all in scope" },
+              ] }
+            : { verdicts: [
+                { criterionId: "d-minimal", pass: true, evidence: "atomic" },
+                { criterionId: "d-feasible", pass: true, evidence: "text-only" },
+                { criterionId: "d-complete", pass: true, evidence: "covers objective" },
+                { criterionId: "d-t1", pass: true, evidence: "constraint carried" },
+              ] };
+        case "rubric_guidance":
+          return { guidance: [{ criterionId: "c-t1", evidenceGuidance: "quote the citation" }] };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    const rubric = await compileRubric(llm, "evaluate study credibility", () => new Date("2026-07-03T00:00:00Z"));
+    expect(rubric.objective).toBe("evaluate study credibility");
+    expect(rubric.criteria.map((c) => c.id)).toEqual(["c-responsive", "c-grounded", "c-t1", "c-s1"]);
+    expect(rubric.criteria.find((c) => c.id === "c-t1")!.evidenceGuidance).toBe("quote the citation");
+    expect(rubric.criteria.find((c) => c.id === "c-s1")!.evidenceGuidance.length).toBeGreaterThan(0); // default applied
+    expect(rubric.truths.map((t) => t.id)).toEqual(["t1"]);       // kept only
+    expect(rubric.assumptions).toHaveLength(1);                    // demoted t2
+    expect(rubric.rejectedTruths).toEqual([]);
+    expect(rubric.gradeability).toEqual({ status: "converged", iterations: 1 });
+    expect(rubric.generatedAt).toBe("2026-07-03T00:00:00.000Z");
+    expect(rubric.model).toBe("claude-opus-4-8");
+  });
+});

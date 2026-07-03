@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Llm } from "../llm/gateway";
 import { refine, RefineFeedback } from "../shared/refine";
 import { judge } from "../shared/judge";
+import { deriveFoundations } from "./foundations";
 
 export interface CompiledCriterion extends Criterion {
   subtaskId?: string;
@@ -212,4 +213,31 @@ export async function gradeabilityCheck(
     { maxIterations: 3 }
   );
   return { criteria: outcome.result, status: outcome.status, iterations: outcome.iterations };
+}
+
+/**
+ * The compile-rubric product: foundations (derive → skeptic → judged
+ * decomposition) → provenanced draft criteria → batched evidence guidance →
+ * gradeability meta-check. Stops before agent-spec generation.
+ */
+export async function compileRubric(
+  llm: Llm,
+  objective: string,
+  now: () => Date = () => new Date()
+): Promise<CompiledRubric> {
+  const f = await deriveFoundations(llm, objective);
+  const drafted = draftCriteria(f.truths, f.subtasks);
+  const guided = await addEvidenceGuidance(llm, objective, drafted);
+  const checked = await gradeabilityCheck(llm, objective, guided);
+
+  return {
+    objective,
+    criteria: checked.criteria,
+    truths: f.vet.kept,
+    assumptions: f.vet.assumptions,
+    rejectedTruths: f.vet.rejected.map((r) => ({ statement: r.truth.statement, attack: r.attack })),
+    gradeability: { status: checked.status, iterations: checked.iterations },
+    generatedAt: now().toISOString(),
+    model: "claude-opus-4-8",
+  };
 }
