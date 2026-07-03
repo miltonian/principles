@@ -42,15 +42,19 @@ function upsertComment(deps: JudgeDiffDeps, body: string): void {
     deps.error("No PR context available for --comment; printed table only.");
     return;
   }
-  const existing = deps
-    .exec(
-      `gh api "repos/{owner}/{repo}/issues/${prNumber}/comments" --jq '[.[] | select(.body | startswith("${COMMENT_MARKER}"))] | first | .id' 2>/dev/null || true`
-    )
-    .trim();
-  if (existing && existing !== "null") {
-    deps.exec(`gh api -X PATCH "repos/{owner}/{repo}/issues/comments/${existing}" -f body=${shellQuote(body)}`);
-  } else {
-    deps.exec(`gh pr comment ${prNumber} --body ${shellQuote(body)}`);
+  try {
+    const existing = deps
+      .exec(
+        `gh api "repos/{owner}/{repo}/issues/${prNumber}/comments" --jq '[.[] | select(.body | startswith("${COMMENT_MARKER}"))] | first | .id' 2>/dev/null || true`
+      )
+      .trim();
+    if (existing && existing !== "null") {
+      deps.exec(`gh api -X PATCH "repos/{owner}/{repo}/issues/comments/${existing}" -f body=${shellQuote(body)}`);
+    } else {
+      deps.exec(`gh pr comment ${prNumber} --body ${shellQuote(body)}`);
+    }
+  } catch (e: any) {
+    deps.error(`Failed to post PR comment (insufficient permissions on fork PRs is expected): ${e.message}`);
   }
 }
 

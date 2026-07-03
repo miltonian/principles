@@ -30,9 +30,9 @@ jobs:
           Not configured: add an `ANTHROPIC_API_KEY` repository secret to enable rubric-based diff judging on PRs.'
             EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '[.[] | select(.body | startswith("<!-- principles-evidence-judge -->"))] | first | .id' 2>/dev/null || true)
             if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
-              gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY"
+              gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY" || true
             else
-              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY" || true
             fi
             exit 0
           fi

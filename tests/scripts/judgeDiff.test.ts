@@ -116,4 +116,19 @@ describe("run", () => {
     expect(await run(["--comment"], deps)).toBe(0);
     expect(err.join("\n").toLowerCase()).toContain("pr context");
   });
+
+  it("--comment posting failure warns and still exits 0", async () => {
+    const { deps, err, out } = makeDeps({
+      exec: (cmd) => {
+        if (cmd.startsWith("git diff")) return "diff --git a/x b/x\n+line";
+        if (cmd.includes("pr view")) return "42";
+        if (cmd.includes("issues/42/comments")) return "";
+        if (cmd.includes("pr comment")) throw new Error("HTTP 403: Resource not accessible");
+        return "";
+      },
+    });
+    expect(await run(["--comment"], deps)).toBe(0);
+    expect(err.join("\n").toLowerCase()).toContain("failed to post");
+    expect(out.join("\n")).toContain("| `c-t1` |"); // table still printed
+  });
 });
