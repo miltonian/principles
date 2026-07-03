@@ -16,6 +16,7 @@ Agent-generation framework: compiles a goal into typed, adversarially-vetted tru
 - `yarn test` — vitest (unit tests are network-free; all LLM callers take an injected `Llm`, tests pass fakes)
 - `yarn generate-agents "<goal>"` — full live pipeline (many Opus calls, costs money; see the `live-verification` skill first)
 - `yarn compile-rubric "<goal>"` — compile a gradeable rubric only (foundations, no agent specs; see the `live-verification` skill for run guidance)
+- `yarn judge-diff` — grade a diff against `.github/review-rubric.json` (advisory; CI posts it on PRs). Regenerate the rubric with `yarn compile-rubric` and copy `rubric.json` over `.github/review-rubric.json` when invariants change.
 
 ## Auth
 

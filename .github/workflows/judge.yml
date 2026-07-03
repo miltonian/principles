@@ -1,0 +1,39 @@
+# .github/workflows/judge.yml
+name: evidence-judge
+on: pull_request
+permissions:
+  pull-requests: write
+  contents: read
+concurrency:
+  group: judge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: yarn install --frozen-lockfile
+      - name: Judge or notice
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            BODY='<!-- principles-evidence-judge -->
+          ### Evidence judge (advisory)
+
+          Not configured: add an `ANTHROPIC_API_KEY` repository secret to enable rubric-based diff judging on PRs.'
+            EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --jq '[.[] | select(.body | startswith("<!-- principles-evidence-judge -->"))] | first | .id' 2>/dev/null || true)
+            if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+              gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$EXISTING" -f body="$BODY"
+            else
+              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+            fi
+            exit 0
+          fi
+          yarn judge-diff --range "origin/${{ github.base_ref }}...HEAD" --comment
