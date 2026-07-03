@@ -62,11 +62,6 @@ export async function decompose(
       `## Truths (cite these ids in servesTruths)`,
       ...truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`),
       ``,
-      `## Rules for web access (needsWeb, webJustification)`,
-      `- needsWeb: set true ONLY when the subtask must fetch or search EXTERNAL material that the`,
-      `  user's prompt cannot be assumed to contain (e.g. retrieving a linked study). When true,`,
-      `  webJustification must concretely name what external material and why it is needed;`,
-      `  when false, webJustification is an empty string.`,
       ...feedbackSection,
     ].join("\n"),
     schema: DecompositionSchema,
@@ -80,7 +75,7 @@ export async function decompose(
     dependsOn: s.dependsOnIndices.map((n) =>
       n >= 1 && n <= result.subtasks.length && n !== i + 1 ? `s${n}` : `invalid:${n}`
     ),
-    needsWeb: s.needsWeb ?? false,
-    webJustification: (s.webJustification ?? "").trim(),
+    needsWeb: s.needsWeb,
+    webJustification: s.webJustification.trim(),
   }));
 }

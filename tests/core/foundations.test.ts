@@ -11,7 +11,7 @@ const scriptedLlm = (): Llm =>
       case "truth_attack":
         return { verdict: "survives", strongestAttack: "none", justification: "solid" };
       case "decomposition":
-        return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [] }] };
+        return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }] };
       case "rubric_verdicts":
         return {
           verdicts: [

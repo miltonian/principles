@@ -5,9 +5,12 @@ import { Llm } from "../../src/llm/gateway";
 
 const truths: Truth[] = [{ id: "t1", type: "constraint", statement: "A", rationale: "" }];
 
-const fakeLlm = (response: unknown, capture?: { prompt?: string }): Llm =>
+const fakeLlm = (response: unknown, capture?: { prompt?: string; system?: string }): Llm =>
   (async (req: any) => {
-    if (capture) capture.prompt = req.prompt;
+    if (capture) {
+      capture.prompt = req.prompt;
+      capture.system = req.system;
+    }
     return response;
   }) as unknown as Llm;
 
@@ -64,9 +67,11 @@ describe("decompose", () => {
   });
 
   it("instructs the model about needsWeb in the prompt", async () => {
-    const capture: { prompt?: string } = {};
+    const capture: { prompt?: string; system?: string } = {};
     const llm = fakeLlm({ subtasks: [] }, capture);
     await decompose(llm, "obj", truths, null);
-    expect(capture.prompt).toContain("needsWeb");
+    const fullRequest = `${capture.system}\n${capture.prompt}`;
+    expect(fullRequest).toContain("needsWeb");
+    expect((fullRequest.match(/needsWeb: set true ONLY/g)?.length) ?? 0).toBe(1);
   });
 });
