@@ -33,4 +33,19 @@ describe("runAgent", () => {
     await runAgent(fakeLlm(capture), spec, "p", new Blackboard(), "previous attempt lacked citations");
     expect(capture.req!.prompt).toContain("previous attempt lacked citations");
   });
+
+  it("passes webTools through and announces web capability in the system prompt", async () => {
+    const capture: { req?: LlmRequest<unknown> } = {};
+    const webSpec = { ...spec, webTools: true };
+    await runAgent(fakeLlm(capture), webSpec, "p", new Blackboard());
+    expect(capture.req!.webTools).toBe(true);
+    expect(capture.req!.system).toContain("web search");
+  });
+
+  it("omits webTools and the web line for tool-less agents", async () => {
+    const capture: { req?: LlmRequest<unknown> } = {};
+    await runAgent(fakeLlm(capture), spec, "p", new Blackboard());
+    expect(capture.req!.webTools).toBeUndefined();
+    expect(capture.req!.system ?? "").not.toContain("web search");
+  });
 });
