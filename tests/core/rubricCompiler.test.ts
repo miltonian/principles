@@ -38,3 +38,48 @@ describe("draftCriteria", () => {
     expect(criteria.every((c) => c.evidenceGuidance === "")).toBe(true);
   });
 });
+
+import { addEvidenceGuidance, DEFAULT_EVIDENCE_GUIDANCE } from "../../src/core/rubricCompiler";
+import { Llm, LlmRequest } from "../../src/llm/gateway";
+
+const fakeLlm = (response: unknown, capture?: { req?: LlmRequest<unknown> }): Llm =>
+  (async (req: LlmRequest<unknown>) => {
+    if (capture) capture.req = req;
+    return response;
+  }) as unknown as Llm;
+
+describe("addEvidenceGuidance", () => {
+  const base = () => draftCriteria(truths, subtasks); // 6 criteria from Task 2 fixtures
+
+  it("fills guidance from one batched call with schemaName rubric_guidance", async () => {
+    const capture: { req?: LlmRequest<unknown> } = {};
+    const llm = fakeLlm(
+      { guidance: base().map((c) => ({ criterionId: c.id, evidenceGuidance: `look for ${c.id}` })) },
+      capture
+    );
+    const out = await addEvidenceGuidance(llm, "obj", base());
+    expect(capture.req!.schemaName).toBe("rubric_guidance");
+    expect(out.map((c) => c.id)).toEqual(base().map((c) => c.id)); // order preserved
+    expect(out.find((c) => c.id === "c-t1")!.evidenceGuidance).toBe("look for c-t1");
+  });
+
+  it("defaults guidance for criteria the model skipped and drops unknown ids", async () => {
+    const llm = fakeLlm({
+      guidance: [
+        { criterionId: "c-t1", evidenceGuidance: "quote the citation" },
+        { criterionId: "c-ghost", evidenceGuidance: "irrelevant" },
+      ],
+    });
+    const out = await addEvidenceGuidance(llm, "obj", base());
+    expect(out.find((c) => c.id === "c-t1")!.evidenceGuidance).toBe("quote the citation");
+    expect(out.find((c) => c.id === "c-s1")!.evidenceGuidance).toBe(DEFAULT_EVIDENCE_GUIDANCE);
+    expect(out.some((c) => (c.id as string) === "c-ghost")).toBe(false);
+  });
+
+  it("does not mutate its input", async () => {
+    const input = base();
+    const llm = fakeLlm({ guidance: [{ criterionId: "c-t1", evidenceGuidance: "x" }] });
+    await addEvidenceGuidance(llm, "obj", input);
+    expect(input.find((c) => c.id === "c-t1")!.evidenceGuidance).toBe("");
+  });
+});
