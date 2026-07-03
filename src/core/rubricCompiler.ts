@@ -1,6 +1,8 @@
-import { Truth, Subtask, Criterion } from "../shared/types";
+import { Truth, Subtask, Criterion, failures } from "../shared/types";
 import { z } from "zod";
 import { Llm } from "../llm/gateway";
+import { refine, RefineFeedback } from "../shared/refine";
+import { judge } from "../shared/judge";
 
 export interface CompiledCriterion extends Criterion {
   subtaskId?: string;
@@ -104,4 +106,110 @@ export async function addEvidenceGuidance(
     ...c,
     evidenceGuidance: byId.get(c.id)?.trim() || DEFAULT_EVIDENCE_GUIDANCE,
   }));
+}
+
+/** Falsifiability applied to the rubric itself: the meta-criteria a rubric must pass. */
+export const META_RUBRIC: Criterion[] = [
+  {
+    id: "m-gradeable",
+    source: "generic",
+    description:
+      "Each criterion can be marked pass/fail by pointing at evidence in a deliverable, without information the grader will not have.",
+  },
+  {
+    id: "m-independent",
+    source: "generic",
+    description: "Criteria do not substantially overlap; no deliverable property is double-counted.",
+  },
+  {
+    id: "m-scoped",
+    source: "generic",
+    description: "No criterion demands work outside the objective's scope.",
+  },
+];
+
+/** Pure render of criteria for judging and for the markdown renderer's body. */
+export function renderCriteriaForJudging(criteria: CompiledCriterion[]): string {
+  return criteria
+    .map((c) => `- [${c.id}] ${c.description}\n  Evidence required: ${c.evidenceGuidance}`)
+    .join("\n");
+}
+
+const RevisionSchema = z.object({
+  criteria: z.array(
+    z.object({
+      id: z.string(),
+      description: z.string(),
+      evidenceGuidance: z.string(),
+    })
+  ),
+});
+
+/**
+ * Revision call for the meta-check loop. The model may reword descriptions
+ * and guidance and may DROP criteria; it may never add. Provenance fields
+ * are re-attached from the current criteria in code. A revision containing
+ * unknown ids is discarded wholesale (returning `current`) — silently
+ * filtering would be a silent bless.
+ */
+export async function reviseCriteria(
+  llm: Llm,
+  objective: string,
+  current: CompiledCriterion[],
+  feedback: RefineFeedback<CompiledCriterion[]>
+): Promise<CompiledCriterion[]> {
+  const failed = failures(feedback.critique);
+  const raw = await llm({
+    system: [
+      "You revise a grading rubric's criteria to fix specific meta-level failures.",
+      "You may reword descriptions and evidence guidance, and you may REMOVE criteria",
+      "(e.g. to fix overlap). You may NOT invent new criteria or new ids.",
+      "Return the full revised criteria list.",
+    ].join("\n"),
+    prompt: [
+      `## Objective the rubric grades against`,
+      objective,
+      ``,
+      `## Current criteria`,
+      renderCriteriaForJudging(current),
+      ``,
+      `## Meta-failures to fix (with evidence)`,
+      ...failed.map((v) => `- ${v.criterionId}: ${v.evidence}`),
+      ``,
+      `## Passing meta-criteria — preserve these properties`,
+      ...feedback.critique.verdicts.filter((v) => v.pass).map((v) => `- ${v.criterionId}: ${v.evidence}`),
+    ].join("\n"),
+    schema: RevisionSchema,
+    schemaName: "rubric_revision",
+  });
+
+  const currentById = new Map(current.map((c) => [c.id, c]));
+  const unknown = raw.criteria.filter((r) => !currentById.has(r.id));
+  if (unknown.length > 0 || raw.criteria.length === 0) {
+    return current; // discarded — refine's repeat-failure escalation will terminate
+  }
+  return raw.criteria.map((r) => ({
+    ...currentById.get(r.id)!, // provenance (source/truthId/subtaskId) from code, not the model
+    description: r.description,
+    evidenceGuidance: r.evidenceGuidance,
+  }));
+}
+
+/** Run the rubric through refine() against META_RUBRIC. Never silently bless. */
+export async function gradeabilityCheck(
+  llm: Llm,
+  objective: string,
+  criteria: CompiledCriterion[]
+): Promise<{ criteria: CompiledCriterion[]; status: string; iterations: number }> {
+  const outcome = await refine<CompiledCriterion[]>(
+    async (feedback) => (feedback ? reviseCriteria(llm, objective, feedback.previous, feedback) : criteria),
+    (candidate) =>
+      judge(llm, {
+        rubric: META_RUBRIC,
+        candidate: renderCriteriaForJudging(candidate),
+        context: `This is a grading rubric for the objective: ${objective}. Judge the RUBRIC itself, not any deliverable.`,
+      }),
+    { maxIterations: 3 }
+  );
+  return { criteria: outcome.result, status: outcome.status, iterations: outcome.iterations };
 }

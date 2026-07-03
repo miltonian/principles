@@ -83,3 +83,86 @@ describe("addEvidenceGuidance", () => {
     expect(input.find((c) => c.id === "c-t1")!.evidenceGuidance).toBe("");
   });
 });
+
+import { gradeabilityCheck, reviseCriteria, META_RUBRIC } from "../../src/core/rubricCompiler";
+
+const guided = () =>
+  draftCriteria(truths, subtasks).map((c) => ({ ...c, evidenceGuidance: "ok evidence rule" }));
+
+const passAllMeta = {
+  verdicts: META_RUBRIC.map((m) => ({ criterionId: m.id, pass: true, evidence: "meta criterion satisfied here" })),
+};
+const failIndependent = {
+  verdicts: [
+    { criterionId: "m-gradeable", pass: true, evidence: "each is evidence-checkable" },
+    { criterionId: "m-independent", pass: false, evidence: "c-t1 and c-s1 double-count citation" },
+    { criterionId: "m-scoped", pass: true, evidence: "all within objective" },
+  ],
+};
+
+describe("gradeabilityCheck", () => {
+  it("converges without revision when the meta-judge passes everything", async () => {
+    let revisions = 0;
+    const llm = (async (req: any) => {
+      if (req.schemaName === "rubric_verdicts") return passAllMeta;
+      if (req.schemaName === "rubric_revision") { revisions++; return { criteria: [] }; }
+      throw new Error(`unexpected ${req.schemaName}`);
+    }) as unknown as Llm;
+    const out = await gradeabilityCheck(llm, "obj", guided());
+    expect(out.status).toBe("converged");
+    expect(out.iterations).toBe(1);
+    expect(revisions).toBe(0);
+    expect(out.criteria.map((c) => c.id)).toEqual(guided().map((c) => c.id));
+  });
+
+  it("revises on failure (reword + drop allowed) and converges", async () => {
+    let judgeCalls = 0;
+    const llm = (async (req: any) => {
+      if (req.schemaName === "rubric_verdicts") return ++judgeCalls === 1 ? failIndependent : passAllMeta;
+      if (req.schemaName === "rubric_revision")
+        return {
+          criteria: guided()
+            .filter((c) => c.id !== "c-s1") // drop one — allowed
+            .map((c) => ({ id: c.id, description: c.description + " (revised)", evidenceGuidance: c.evidenceGuidance })),
+        };
+      throw new Error(`unexpected ${req.schemaName}`);
+    }) as unknown as Llm;
+    const out = await gradeabilityCheck(llm, "obj", guided());
+    expect(out.status).toBe("converged");
+    expect(out.criteria.some((c) => c.id === "c-s1")).toBe(false);
+    expect(out.criteria.find((c) => c.id === "c-t1")!.description).toContain("(revised)");
+    // provenance preserved through revision:
+    expect(out.criteria.find((c) => c.id === "c-t1")!.truthId).toBe("t1");
+  });
+
+  it("discards revisions that invent criterion ids and escalates on the repeat failure", async () => {
+    const llm = (async (req: any) => {
+      if (req.schemaName === "rubric_verdicts") return failIndependent;
+      if (req.schemaName === "rubric_revision")
+        return { criteria: [{ id: "c-invented", description: "new!", evidenceGuidance: "x" }] };
+      throw new Error(`unexpected ${req.schemaName}`);
+    }) as unknown as Llm;
+    const out = await gradeabilityCheck(llm, "obj", guided());
+    expect(out.status).toBe("escalated");
+    expect(out.criteria.map((c) => c.id)).toEqual(guided().map((c) => c.id)); // original kept
+  });
+});
+
+describe("reviseCriteria", () => {
+  it("keeps provenance fields from the current criteria (model cannot touch them)", async () => {
+    const current = guided();
+    const llm = (async (req: any) => {
+      expect(req.schemaName).toBe("rubric_revision");
+      return { criteria: [{ id: "c-t1", description: "tightened", evidenceGuidance: "tighter rule" }] };
+    }) as unknown as Llm;
+    const out = await reviseCriteria(llm, "obj", current, {
+      previous: current,
+      critique: failIndependent,
+    });
+    const ct1 = out.find((c) => c.id === "c-t1")!;
+    expect(ct1.truthId).toBe("t1");
+    expect(ct1.source).toBe("truth");
+    expect(ct1.description).toBe("tightened");
+    expect(out).toHaveLength(1);
+  });
+});
