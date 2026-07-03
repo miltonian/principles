@@ -131,4 +131,18 @@ describe("run", () => {
     expect(err.join("\n").toLowerCase()).toContain("failed to post");
     expect(out.join("\n")).toContain("| `c-t1` |"); // table still printed
   });
+
+  it("--comment uses deps.prNumber when set, even if `gh pr view` is unavailable (detached-HEAD CI checkout)", async () => {
+    const { deps, execs } = makeDeps({
+      prNumber: "77",
+      exec: (cmd) => {
+        if (cmd.startsWith("git diff")) return "diff --git a/x b/x\n+line";
+        if (cmd.includes("pr view")) throw new Error("fatal: not a pull request (detached HEAD)");
+        if (cmd.includes("issues/77/comments")) return ""; // no existing marker comment
+        return "";
+      },
+    });
+    expect(await run(["--comment"], deps)).toBe(0);
+    expect(execs.some((c) => c.includes("pr comment 77"))).toBe(true);
+  });
 });

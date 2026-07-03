@@ -63,6 +63,8 @@ describe("judgeDiff", () => {
     expect(capture.req!.schemaName).toBe("rubric_verdicts");
     expect(capture.req!.prompt).toContain("c-t1");
     expect(capture.req!.prompt).toContain("Unified git diff under review:");
+    expect(capture.req!.prompt).toContain("Evidence required:");
+    expect(capture.req!.prompt).toContain("Check import lines.");
     expect(j.critique.verdicts).toHaveLength(2);
     expect(j.truncated).toBe(false);
     expect(j.rubricObjective).toBe("review a code change");

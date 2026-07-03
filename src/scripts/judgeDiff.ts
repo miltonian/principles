@@ -14,6 +14,7 @@ export interface JudgeDiffDeps {
   readFile: (p: string) => string;
   log: (s: string) => void;
   error: (s: string) => void;
+  prNumber?: string;
 }
 
 const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
@@ -35,12 +36,16 @@ function parseArgs(argv: string[]): Flags | { badFlag: string } {
 
 function upsertComment(deps: JudgeDiffDeps, body: string): void {
   let prNumber: string;
-  try {
-    prNumber = deps.exec("gh pr view --json number -q .number").trim();
-    if (!prNumber) throw new Error("empty");
-  } catch {
-    deps.error("No PR context available for --comment; printed table only.");
-    return;
+  if (deps.prNumber && deps.prNumber.trim()) {
+    prNumber = deps.prNumber.trim();
+  } else {
+    try {
+      prNumber = deps.exec("gh pr view --json number -q .number").trim();
+      if (!prNumber) throw new Error("empty");
+    } catch {
+      deps.error("No PR context available for --comment; printed table only.");
+      return;
+    }
   }
   try {
     const existing = deps
@@ -111,6 +116,7 @@ if (require.main === module) {
     readFile: (p) => fs.readFileSync(path.resolve(p), "utf8"),
     log: console.log,
     error: console.error,
+    prNumber: process.env.PR_NUMBER,
   };
   run(process.argv.slice(2), deps).then((code) => process.exit(code));
 }

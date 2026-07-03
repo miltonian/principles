@@ -46,8 +46,14 @@ export function loadRubricCriteria(rubricJson: unknown): CompiledRubric {
 
 export async function judgeDiff(llm: Llm, diff: string, rubric: CompiledRubric): Promise<DiffJudgment> {
   const { candidate, truncated } = buildCandidate(diff);
+  const judgedRubric = rubric.criteria.map((c) => ({
+    ...c,
+    description: c.evidenceGuidance
+      ? `${c.description} — Evidence required: ${c.evidenceGuidance}`
+      : c.description,
+  }));
   const critique = await judge(llm, {
-    rubric: rubric.criteria,
+    rubric: judgedRubric,
     candidate,
     context: [
       `You are reviewing a code change to the Principles framework repository.`,

@@ -44,7 +44,7 @@ export interface DiffJudgment {
   criteriaCount: number;
 }
 export function buildCandidate(diff: string): { candidate: string; truncated: boolean }
-export function loadRubricCriteria(rubricJson: unknown): Criterion[]   // validates CompiledRubric shape minimally; throws descriptive error on mismatch
+export function loadRubricCriteria(rubricJson: unknown): CompiledRubric   // validates CompiledRubric shape minimally; throws descriptive error on mismatch
 export async function judgeDiff(llm: Llm, diff: string, rubric: CompiledRubric): Promise<DiffJudgment>
 export function renderVerdictTable(j: DiffJudgment): string            // markdown: header note (advisory), truncation notice when set, | criterion | verdict | evidence | rows, footer with objective + hidden marker comment
 ```
