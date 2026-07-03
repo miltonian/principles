@@ -1,4 +1,6 @@
-<img src="logo.svg" height="200" alt="Principles Framework Logo">
+<p align="center">
+  <img src="assets/principles-stacked-light.png" width="440" alt="Principles — first principles agents">
+</p>
 
 # Principles Framework
 
