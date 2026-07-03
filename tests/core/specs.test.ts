@@ -27,8 +27,16 @@ describe("generateAgentSpecs", () => {
       { id: "s1", description: "fetch", servesTruths: ["t1"], dependsOn: [], needsWeb: true, webJustification: "external paper" },
       { id: "s2", description: "summarize", servesTruths: ["t1"], dependsOn: ["s1"], needsWeb: false, webJustification: "" },
     ];
-    const specs = await generateAgentSpecs(fakeLlm(), "obj", truths, webbed);
+    const prompts: string[] = [];
+    const llm = (async (req: any) => {
+      prompts.push(req.prompt);
+      return { name: "Analyzer", instructions: "do the thing", outputHint: "a paragraph" };
+    }) as unknown as Llm;
+    const specs = await generateAgentSpecs(llm, "obj", truths, webbed);
     expect(specs[0].webTools).toBe(true);
     expect("webTools" in specs[1]).toBe(false);
+    expect(prompts[0]).toContain("## Web access");
+    expect(prompts[0]).toContain("external paper");
+    expect(prompts[1]).not.toContain("## Web access");
   });
 });

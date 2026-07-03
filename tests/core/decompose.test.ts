@@ -52,6 +52,27 @@ describe("decompose", () => {
     expect(capture.prompt).toContain("d-feasible");             // passing criterion listed as preserve
   });
 
+  it("carries the previous attempt's web request into the feedback section", async () => {
+    const capture: { prompt?: string } = {};
+    const llm = fakeLlm({ subtasks: [] }, capture);
+    await decompose(llm, "obj", truths, {
+      previous: [
+        {
+          id: "s1",
+          description: "old subtask",
+          servesTruths: ["t1"],
+          dependsOn: [],
+          needsWeb: true,
+          webJustification: "needs the external paper",
+        },
+      ],
+      critique: {
+        verdicts: [{ criterionId: "d-minimal", pass: true, evidence: "fine" }],
+      },
+    });
+    expect(capture.prompt).toContain("WEB REQUESTED: needs the external paper");
+  });
+
   it("maps needsWeb and webJustification from the model output", async () => {
     const llm = fakeLlm({
       subtasks: [

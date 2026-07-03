@@ -28,6 +28,46 @@ const scriptedLlm = (): Llm =>
   }) as unknown as Llm;
 
 describe("deriveFoundations", () => {
+  it("includes the web request in the judge prompt so d-web can be verified", async () => {
+    const capture: { prompt?: string } = {};
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "typed_truths":
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r" }] };
+        case "truth_attack":
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          return {
+            subtasks: [
+              {
+                description: "fetch the paper",
+                servesTruths: ["t1"],
+                dependsOnIndices: [],
+                needsWeb: true,
+                webJustification: "the study text is external",
+              },
+            ],
+          };
+        case "rubric_verdicts":
+          capture.prompt = (req as unknown as { prompt: string }).prompt;
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "web request is justified" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    await deriveFoundations(llm, "evaluate study credibility");
+    expect(capture.prompt).toContain("WEB REQUESTED: the study text is external");
+  });
+
   it("derives, vets, and decomposes without generating agent specs", async () => {
     const f = await deriveFoundations(scriptedLlm(), "evaluate study credibility");
     expect(f.truths).toHaveLength(1);

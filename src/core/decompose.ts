@@ -31,7 +31,12 @@ export async function decompose(
     ? [
         ``,
         `## Previous attempt (REVISE this — do not start over)`,
-        ...feedback.previous.map((s) => `- ${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"})`),
+        ...feedback.previous.map(
+          (s) =>
+            `- ${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
+              s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
+            })`
+        ),
         ``,
         `## What failed — fix exactly these`,
         ...failures(feedback.critique).map((v) => `- ${v.criterionId}: ${v.evidence}`),

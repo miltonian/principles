@@ -28,6 +28,8 @@ const MAX_ATTEMPTS = 3;
 // decompositions. Allow 4 to be safe.
 const MAX_TURNS = 4;
 
+// Web tool loops consume turns fetching/searching before finalizing structured
+// output, so they need far more headroom than the tool-less MAX_TURNS above.
 export const WEB_MAX_TURNS = 12;
 
 /** Thrown for outcomes that must propagate immediately, never retried. */
