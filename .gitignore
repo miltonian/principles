@@ -8,4 +8,5 @@ agents
 ignore
 packages
 rubrics/
-.DS_Store.bench-cache/
+.DS_Store
+.bench-cache/
