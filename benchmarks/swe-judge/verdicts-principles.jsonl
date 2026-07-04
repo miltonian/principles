@@ -1,0 +1,5 @@
+{"instanceId":"pylint-dev__pylint-6386","arm":"principles","prediction":"resolved","actual":true,"detail":"c-responsive:P c-grounded:P c-t1:P c-s1:P c-s2:P c-s3:P c-s4:P c-s5:P c-s6:P"}
+{"instanceId":"sphinx-doc__sphinx-9281","arm":"principles","prediction":"not_resolved","actual":true,"detail":"c-responsive:P c-grounded:P c-t1:P c-s1:P c-s2:P c-s3:P c-s4:F c-s5:P c-s6:F"}
+{"instanceId":"django__django-14672","arm":"principles","prediction":"resolved","actual":true,"detail":"c-responsive:P c-grounded:P c-t1:P c-s1:P c-s2:P c-s3:P c-s4:P c-s5:P c-s6:P"}
+{"instanceId":"sympy__sympy-14248","arm":"principles","prediction":"resolved","actual":true,"detail":"c-responsive:P c-grounded:P c-t1:P c-s1:P c-s2:P c-s3:P c-s4:P c-s5:P c-s6:P"}
+{"instanceId":"psf__requests-1921","arm":"principles","prediction":"resolved","actual":true,"detail":"c-responsive:P c-grounded:P c-t1:P c-s1:P c-s2:P c-s3:P c-s4:P c-s5:P c-s6:P"}

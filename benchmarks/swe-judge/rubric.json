@@ -1,0 +1,134 @@
+{
+  "objective": "review a candidate patch (a unified git diff) for whether it fully resolves the described GitHub issue without breaking existing behavior, judging only from the issue text and the patch",
+  "criteria": [
+    {
+      "id": "c-responsive",
+      "source": "generic",
+      "description": "The deliverable directly addresses the stated objective — not a generic treatment near the topic.",
+      "evidenceGuidance": "PASS requires the deliverable to be an actual review of THIS specific patch against THIS specific issue: it must cite concrete elements from both the issue text (the desired outcome) and the diff (named files, functions, changed lines) and conclude with a verdict on whether the patch resolves the issue. FAIL if the deliverable is a generic essay about code review, PR best practices, or how to evaluate diffs in the abstract; if it never names anything specific to the given issue/patch; or if it answers a different question than 'does this patch fully resolve the issue without breaking existing behavior.' Grader must be able to point to at least one issue-specific acceptance criterion and one diff-specific change that are tied together in the reasoning."
+    },
+    {
+      "id": "c-grounded",
+      "source": "generic",
+      "description": "Factual claims about the code are traceable to the provided material; nothing is fabricated or invented.",
+      "evidenceGuidance": "This criterion grades ONLY fabrication/traceability. PASS requires every factual claim about what the code contains or does to quote or reference specific added/removed lines actually present in the diff, or specific wording present in the issue text. FAIL if the deliverable invents functions, line numbers, file contents, signatures, or control-flow branches not present in the provided material — e.g., naming a function that appears nowhere in the diff or issue, citing a line the diff does not contain, or describing behavior of a hunk that is not shown. A single fabricated claim about code state is a FAIL. Scope boundary (do NOT re-penalize here): reliance on running builds/tests or checking out files is graded by c-t1; explicitly acknowledging that unmodified files/full file bodies are not visible is graded by c-s2; enumerating specific unconfirmable non-regression claims is graded by c-s5."
+    },
+    {
+      "id": "c-t1",
+      "source": "truth",
+      "truthId": "t1",
+      "description": "The deliverable satisfies the constraint: \"The verdict must be reached using only two artifacts — the issue text and the unified diff — with no repository checkout, build, execution, or test run.\"",
+      "evidenceGuidance": "This criterion grades ONLY whether the reasoning stays within the two allowed artifacts and avoids invoking any external action. PASS requires NO evidence that a conclusion depends on cloning/checking out the repo, opening an unmodified file, running a build/compiler, executing the program, or running a test suite. FAIL if the deliverable claims 'I ran the tests', 'it compiles cleanly', 'the build passes', or 'I inspected/opened file X' where X is only referenced and not present as a diff hunk — i.e., it grounds any conclusion in an executed or fetched artifact beyond issue+diff. Scope boundary (do NOT re-penalize here): merely fabricating a claim without invoking an external action is graded by c-grounded; whether the deliverable positively acknowledges that unmodified files are not observable is graded by c-s2."
+    },
+    {
+      "id": "c-s1",
+      "source": "subtask",
+      "subtaskId": "s1",
+      "description": "Analyze the provided issue text and extract an explicit, itemized list of acceptance criteria — the concrete desired outcome(s) the issue asks for — treating the issue text as the complete and faithful statement of what a correct fix must accomplish.",
+      "evidenceGuidance": "PASS requires an explicit, itemized (numbered or bulleted) list of acceptance criteria extracted from the issue text — the concrete desired outcome(s) a correct fix must achieve — with each item traceable to wording or intent in the issue. Grader must be able to check each item against the issue text. FAIL if acceptance criteria are only implied, buried in prose, invented beyond what the issue states, or missing outcomes the issue clearly demands. The list must treat the issue text as the complete/faithful spec (not import outside requirements)."
+    },
+    {
+      "id": "c-s2",
+      "source": "subtask",
+      "subtaskId": "s2",
+      "description": "Parse the unified diff and catalog exactly what it changes (added/removed/modified lines, signatures, control flow, invariants), explicitly noting that only changed hunks plus surrounding context are visible and that unmodified files and full file bodies are not observable.",
+      "evidenceGuidance": "This criterion is the sole owner of both (1) the concrete diff change-inventory and (2) the limited-visibility acknowledgement. PASS requires a catalog of exactly what the diff changes — added/removed/modified lines, altered signatures, control-flow changes, invariant changes, each referencing actual hunks — AND an explicit statement that only changed hunks plus surrounding context are visible, so unmodified files and full file bodies are NOT observable. Grader must find BOTH the concrete change inventory and the visibility caveat. FAIL if the deliverable describes changes not present in the diff, omits the limited-visibility acknowledgement, or treats the diff as if it revealed whole files. Scope boundary: pure fabrication is graded by c-grounded; invoking external actions (build/test/checkout) is graded by c-t1."
+    },
+    {
+      "id": "c-s3",
+      "source": "subtask",
+      "subtaskId": "s3",
+      "description": "Evaluate whether the cataloged diff changes satisfy each extracted acceptance criterion, producing a per-criterion determination of full resolution, partial resolution, or non-resolution.",
+      "evidenceGuidance": "PASS requires a per-criterion mapping: for each acceptance criterion from c-s1, a determination of full resolution / partial resolution / non-resolution, justified by reference to specific cataloged diff changes from c-s2. Grader must see the coverage be complete (every listed criterion gets a determination) and each determination cite the diff evidence supporting it. FAIL if some criteria are left unevaluated, determinations are asserted without pointing to diff evidence, or the three-way (full/partial/none) granularity is collapsed into an unsupported yes/no. This is the deliverable's answer to question (a) — does the patch fully resolve the issue."
+    },
+    {
+      "id": "c-s4",
+      "source": "subtask",
+      "subtaskId": "s4",
+      "description": "Evaluate whether the diff alters behavior the issue did not request in a way that would be a regression, distinguishing the intended behavioral change from unintended side effects observable within the diff.",
+      "evidenceGuidance": "PASS requires an explicit regression analysis of behavior the issue did NOT request: the deliverable must distinguish the intended behavioral change from unintended side effects that are observable within the diff (e.g., a changed default, removed branch, altered return value, modified signature affecting behavior). Grader must find at least a deliberate consideration of whether visible changes introduce unrequested behavior changes. FAIL if the deliverable only checks that the fix works and never considers side effects, or asserts 'no regressions' without examining the diff for behavior-altering changes beyond the issue's scope. This is the deliverable's answer to question (b) — does the patch avoid breaking existing behavior, as far as the diff itself reveals."
+    },
+    {
+      "id": "c-s5",
+      "source": "subtask",
+      "subtaskId": "s5",
+      "description": "Enumerate the non-regression claims that cannot be confirmed from the diff alone (e.g., other call sites of a changed signature, invariants relied on elsewhere), explicitly flagging these as unfalsifiable from the given evidence rather than asserting safety.",
+      "evidenceGuidance": "This criterion is the sole owner of proactively enumerating specific unconfirmable non-regression claims. PASS requires an explicit enumeration of non-regression claims that CANNOT be confirmed from the diff alone — e.g., other call sites of a changed signature, invariants relied on by unmodified code, callers/consumers not shown — each flagged as unfalsifiable/unknown from the given evidence rather than asserted as safe. Grader must find concrete named uncertainties tied to the specific changes (not a generic disclaimer). FAIL if the deliverable claims safety of unseen code, provides only a vague blanket caveat with no specific items, or asserts no such risks exist when the diff changes a shared signature/invariant. Scope boundary: the general 'don't fabricate' rule is graded by c-grounded and the visibility caveat by c-s2; here the specific, itemized regression unknowns are what is required."
+    },
+    {
+      "id": "c-s6",
+      "source": "subtask",
+      "subtaskId": "s6",
+      "description": "Synthesize a single binary verdict that is positive only if BOTH full resolution and non-regression hold, incorporating the flagged unfalsifiable claims, and state the verdict as itself a falsifiable classification that ground truth could later contradict.",
+      "evidenceGuidance": "This criterion is the sole owner of the AND-gated final verdict and its falsifiable framing (it consumes question (a) from c-s3 and question (b) from c-s4/c-s5). PASS requires a single binary verdict that is positive ONLY if BOTH full resolution (from c-s3) and non-regression (from c-s4/c-s5) hold, that visibly incorporates the flagged unfalsifiable claims (a positive verdict must acknowledge and account for them — e.g., conditioning on them or defaulting to negative/at-risk when a material non-regression claim is unconfirmed), and that is stated as a falsifiable classification — i.e., phrased so ground truth could later contradict it. Grader must find one clear final verdict, its dependence on the AND of both questions, and language framing it as a testable claim. FAIL if the verdict is hedged into non-binary mush, is positive despite partial resolution or unresolved regression risk, ignores the c-s5 flags, or is stated in a way that could never be proven wrong."
+    }
+  ],
+  "truths": [
+    {
+      "id": "t1",
+      "type": "constraint",
+      "statement": "The verdict must be reached using only two artifacts — the issue text and the unified diff — with no repository checkout, build, execution, or test run.",
+      "rationale": "The objective explicitly says 'judging only from the issue text and the patch'; any reasoning that depends on running or browsing the wider codebase violates the stated evidence boundary."
+    },
+    {
+      "id": "t2",
+      "type": "constraint",
+      "statement": "A valid verdict must answer two independent questions — (a) does the patch fully resolve the issue, and (b) does it avoid breaking existing behavior — and can be positive only if BOTH hold.",
+      "rationale": "The objective conjoins 'fully resolves' AND 'without breaking existing behavior'; a review that addresses only one dimension is incomplete and could be wrong."
+    },
+    {
+      "id": "t6",
+      "type": "fact",
+      "statement": "Some regression risks (e.g., other call sites of a changed signature, altered invariants relied on elsewhere) are not observable from the patch alone, so certain non-regression claims are unfalsifiable from the given evidence.",
+      "rationale": "Follows directly from the diff's limited context; an honest reviewer must flag such cases as 'unverifiable' rather than asserting safety, mirroring the framework's rule that non-converged judgments must surface as unverified."
+    },
+    {
+      "id": "t9",
+      "type": "fact",
+      "statement": "The review's own conclusion is a binary classification that could later be contradicted by ground truth (the patch merged and the issue reopened, or a regression discovered), i.e., the verdict is itself falsifiable.",
+      "rationale": "This keeps the exercise honest: the output is not an opinion but a claim that can be checked against what actually happened when the patch was applied and tested."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "t4",
+      "type": "assumption",
+      "statement": "'Breaking existing behavior' means the diff alters behavior the issue did not ask to change in a way that would be a regression, as opposed to the intended behavioral change the issue requests.",
+      "rationale": "The intended fix necessarily changes some behavior; the constraint targets *unintended* changes, and this distinction must stay consistent across the review."
+    },
+    {
+      "id": "t5",
+      "type": "assumption",
+      "statement": "A unified diff reveals only changed hunks plus a few lines of surrounding context — not the full body of modified files, and none of the unmodified files that may call the changed code.",
+      "rationale": "Checkable against the diff format itself; it bounds what regression evidence is even present in the inputs."
+    },
+    {
+      "id": "t7",
+      "type": "assumption",
+      "statement": "The issue text is a faithful and complete statement of the desired outcome, so it can serve as the acceptance criteria.",
+      "rationale": "Cannot be verified from the inputs; if the issue is vague or omits an implicit requirement, a 'fully resolves' judgment may be wrong through no fault of the reasoning."
+    },
+    {
+      "id": "t8",
+      "type": "assumption",
+      "statement": "The diff is well-formed, applies cleanly to the intended version of the codebase, and constitutes the entire proposed change (no companion commits or manual steps).",
+      "rationale": "Unverifiable without the repo; a broken or partial diff would invalidate any downstream verdict but cannot be detected from the patch text alone."
+    }
+  ],
+  "rejectedTruths": [
+    {
+      "statement": "'Fully resolves' means the patch addresses every explicit symptom or requirement stated in the issue text — not merely one part or a plausible-looking edit near the relevant code.",
+      "attack": "Symptom-suppression counterexample: for an issue \"app crashes when clicking Save,\" a patch that swallows the exception addresses the only explicit symptom (no crash) with no regression, so this definition forces the reviewer to call it a full resolution — yet Save now silently fails and the issue is unresolved. Thus \"addresses every explicit symptom/requirement\" is not sufficient for \"fully resolves,\" breaking the claimed equivalence."
+    }
+  ],
+  "decomposition": {
+    "status": "converged",
+    "iterations": 1
+  },
+  "gradeability": {
+    "status": "converged",
+    "iterations": 2
+  },
+  "generatedAt": "2026-07-03T21:49:35.319Z",
+  "model": "claude-opus-4-8"
+}
