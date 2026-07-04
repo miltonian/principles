@@ -49,6 +49,10 @@ describe("coverage checks", () => {
     expect(orphan.evidence).toContain("t2");
   });
 
+  it("flags an empty coverage map as total silent narrowing", () => {
+    expect(unmappedBreadth([], [])).toEqual(["(empty coverage map)"]);
+  });
+
   it("finds needsWeb subtasks lacking a justification", () => {
     const withWeb = (id: string, needsWeb: boolean, just: string): Subtask =>
       ({ id, description: id, servesTruths: ["t1"], dependsOn: [], needsWeb, webJustification: just });

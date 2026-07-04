@@ -37,6 +37,8 @@ export function unjustifiedWeb(subtasks: Subtask[]): string[] {
  * to wave through.
  */
 export function unmappedBreadth(coverageMap: CoverageMapRow[], subtasks: Subtask[]): string[] {
+  // An empty map is total silent narrowing — the exact failure this check exists for.
+  if (coverageMap.length === 0) return ["(empty coverage map)"];
   const known = new Set(subtasks.map((s) => s.id));
   return coverageMap
     .filter((row) => {
