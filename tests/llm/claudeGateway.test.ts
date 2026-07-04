@@ -223,8 +223,8 @@ describe("makeClaudeAgentSdkLlm", () => {
           [
             {
               type: "result",
-              subtype: "error_max_structured_output_retries",
-              errors: [{ message: "schema mismatch" }],
+              subtype: "error_during_execution",
+              errors: [{ message: "boom" }],
             },
           ],
         ],
@@ -233,8 +233,30 @@ describe("makeClaudeAgentSdkLlm", () => {
     });
     await expect(
       llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })
-    ).rejects.toThrow(/error_max_structured_output_retries/);
+    ).rejects.toThrow(/error_during_execution/);
     expect(capture.calls).toBe(1);
+  });
+
+  it("retries error_max_structured_output_retries with a fresh query (live: finalize converges on resample)", async () => {
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuerySequence(
+        [
+          [
+            {
+              type: "result",
+              subtype: "error_max_structured_output_retries",
+              errors: [{ message: "must have required property 'notes'" }],
+            },
+          ],
+          [success({ a: "landed" })],
+        ],
+        capture
+      ),
+    });
+    const out = await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
+    expect(out).toEqual({ a: "landed" });
+    expect(capture.calls).toBe(2);
   });
 });
 

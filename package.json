@@ -20,6 +20,7 @@
     "generate-agents": "yarn build && node dist/scripts/agentGenerator.js",
     "compile-rubric": "yarn build && node dist/scripts/rubricCli.js",
     "judge-diff": "yarn build && node dist/scripts/judgeDiff.js",
+    "research-pilot": "yarn build && node dist/scripts/researchPilot.js",
     "test": "vitest run",
     "test:watch": "vitest"
   }

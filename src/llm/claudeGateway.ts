@@ -99,9 +99,19 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
             );
             break;
           }
-          // Non-success subtype: the SDK already retried internally — surface
-          // immediately, do not retry the whole query on top of that.
           const detail = message.errors ? `: ${JSON.stringify(message.errors)}` : "";
+          if (message.subtype === "error_max_structured_output_retries") {
+            // Live evidence (research-pilot smoke): on report-sized payloads the
+            // finalize can burn all internal attempts while visibly converging
+            // (payloads shrank attempt-over-attempt). A fresh query resamples and
+            // usually lands — retry at our level instead of failing the agent.
+            lastError = new Error(
+              `Claude Agent SDK returned ${message.subtype} for schema "${schemaName}"${detail}`
+            );
+            break;
+          }
+          // Other non-success subtypes: the SDK already retried internally —
+          // surface immediately, do not retry the whole query on top of that.
           throw new NonRetryableSdkError(
             `Claude Agent SDK returned ${message.subtype} for schema "${schemaName}"${detail}`
           );

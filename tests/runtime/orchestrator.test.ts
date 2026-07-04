@@ -55,6 +55,49 @@ const scriptedLlmAlwaysFailingRubric = (log: string[]): Llm =>
   }) as unknown as Llm;
 
 describe("runOntology", () => {
+  it("scopes the judge rubric per agent: truth criteria apply only to agents whose subtask cites that truth (live: global rubric failed all 10 agents on a research task)", async () => {
+    const scoped: Ontology = {
+      ...ontology,
+      truths: [
+        { id: "t1", type: "constraint", statement: "cite evidence", rationale: "" },
+        { id: "t9", type: "constraint", statement: "contrast APIs vs MCP", rationale: "" },
+      ],
+      outputRubric: [
+        { id: "o-responsive", description: "addresses the prompt", source: "generic" },
+        { id: "o-t1", description: 'satisfies: "cite evidence"', source: "truth", truthId: "t1" },
+        { id: "o-t9", description: 'satisfies: "contrast APIs vs MCP"', source: "truth", truthId: "t9" },
+      ],
+    };
+    const judgePrompts: string[] = [];
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "triage_plan":
+          return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1"] };
+        case "agent_output":
+          return { notes: "n", result: "agent deliverable" };
+        case "rubric_verdicts":
+          judgePrompts.push(req.prompt);
+          return {
+            verdicts: [
+              { criterionId: "o-responsive", pass: true, evidence: "answers directly" },
+              { criterionId: "o-t1", pass: true, evidence: "evidence cited inline" },
+            ],
+          };
+        case "synthesis":
+          return { answer: "final" };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+    const result = await runOntology(llm, scoped, "prompt");
+    // agent-s1 serves only t1: its judge must see o-t1 but never o-t9 —
+    // and with o-t9 absent from the rubric, the judge's mechanical
+    // skipped-criterion rule must not fail the agent for it.
+    expect(judgePrompts[0]).toContain("o-t1");
+    expect(judgePrompts[0]).not.toContain("o-t9");
+    expect(result.unverified).toEqual([]);
+  });
+
   it("plans, executes agents in dependency order, and synthesizes from the board", async () => {
     const log: string[] = [];
     const result = await runOntology(scriptedLlm(log), ontology, "is this claim credible?");
