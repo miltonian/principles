@@ -20,12 +20,14 @@ export interface GateResult {
  */
 export function roleLeakGate(text: string): GateResult {
   const patterns = [
-    /\bI'?m the synthesis\b/i,
+    /\b(?:I'?m|I am) the synthesis\b/i,
     /\bas the synthesis agent\b/i,
     /\bmy (?:subtask|blackboard|fellow agents)\b/i,
     /\bagent-s\d+\b/,
     /\b(?:the|our) blackboard (?:already\s+)?(?:contains|has|holds|shows)\b/i,
-    /\bon the blackboard\b/i,
+    // NOTE: no bare topical patterns ("on the blackboard", "blackboard pattern"):
+    // reports ABOUT blackboard architectures must pass. The judged
+    // c-contract-clean criterion covers narration the regexes can't safely reach.
   ];
 
   const failures: string[] = [];

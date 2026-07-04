@@ -130,7 +130,16 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
         context: `Final deliverable for: ${ontology.objective}. User request: ${userPrompt}`,
       });
       if (!gates.pass) {
-        critique.verdicts.push(...gates.failures.map((f, i) => ({ criterionId: `gate-${i}`, pass: false, evidence: f })));
+        // Stable ids: key on the failure's own text prefix (gate name), not the
+        // array index, so refine's repeat-failure escalation sees a stuck gate
+        // as the SAME criterion across iterations.
+        critique.verdicts.push(
+          ...gates.failures.map((f) => ({
+            criterionId: `gate-${f.split(":")[0].toLowerCase().replace(/\s+/g, "-")}`,
+            pass: false,
+            evidence: f,
+          }))
+        );
       }
       return critique;
     },

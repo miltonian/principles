@@ -21,6 +21,10 @@ describe("roleLeakGate", () => {
   it("still fails first-person process narration", () => {
     expect(roleLeakGate("The blackboard already contains a full design.").pass).toBe(false);
     expect(roleLeakGate("My fellow agents produced drafts.").pass).toBe(false);
+    expect(roleLeakGate("I am the synthesis agent, and I combined the drafts.").pass).toBe(false);
+  });
+  it("passes textbook blackboard-pattern descriptions (review-flagged residual)", () => {
+    expect(roleLeakGate("Knowledge sources post partial solutions on the blackboard.").pass).toBe(true);
   });
 });
 
