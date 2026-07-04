@@ -21,8 +21,9 @@ describe("decompose", () => {
         { description: "first", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" },
         { description: "second", servesTruths: ["t1"], dependsOnIndices: [1], needsWeb: false, webJustification: "" },
       ],
+      coverageMap: [],
     });
-    const subtasks = await decompose(llm, "obj", truths, null);
+    const { subtasks } = await decompose(llm, "obj", truths, null);
     expect(subtasks.map((s) => s.id)).toEqual(["s1", "s2"]);
     expect(subtasks[1].dependsOn).toEqual(["s1"]);
   });
@@ -30,16 +31,20 @@ describe("decompose", () => {
   it("marks out-of-range dependency indices so coverage checks catch them", async () => {
     const llm = fakeLlm({
       subtasks: [{ description: "only", servesTruths: ["t1"], dependsOnIndices: [9], needsWeb: false, webJustification: "" }],
+      coverageMap: [],
     });
-    const subtasks = await decompose(llm, "obj", truths, null);
+    const { subtasks } = await decompose(llm, "obj", truths, null);
     expect(subtasks[0].dependsOn).toEqual(["invalid:9"]);
   });
 
   it("includes previous attempt and failed criteria in the prompt when given feedback", async () => {
     const capture: { prompt?: string } = {};
-    const llm = fakeLlm({ subtasks: [] }, capture);
+    const llm = fakeLlm({ subtasks: [], coverageMap: [] }, capture);
     await decompose(llm, "obj", truths, {
-      previous: [{ id: "s1", description: "old subtask", servesTruths: ["t1"], dependsOn: [], needsWeb: false, webJustification: "" }],
+      previous: {
+        subtasks: [{ id: "s1", description: "old subtask", servesTruths: ["t1"], dependsOn: [], needsWeb: false, webJustification: "" }],
+        coverageMap: [],
+      },
       critique: {
         verdicts: [
           { criterionId: "d-minimal", pass: false, evidence: "s1 bundles two actions" },
@@ -54,23 +59,45 @@ describe("decompose", () => {
 
   it("carries the previous attempt's web request into the feedback section", async () => {
     const capture: { prompt?: string } = {};
-    const llm = fakeLlm({ subtasks: [] }, capture);
+    const llm = fakeLlm({ subtasks: [], coverageMap: [] }, capture);
     await decompose(llm, "obj", truths, {
-      previous: [
-        {
-          id: "s1",
-          description: "old subtask",
-          servesTruths: ["t1"],
-          dependsOn: [],
-          needsWeb: true,
-          webJustification: "needs the external paper",
-        },
-      ],
+      previous: {
+        subtasks: [
+          {
+            id: "s1",
+            description: "old subtask",
+            servesTruths: ["t1"],
+            dependsOn: [],
+            needsWeb: true,
+            webJustification: "needs the external paper",
+          },
+        ],
+        coverageMap: [],
+      },
       critique: {
         verdicts: [{ criterionId: "d-minimal", pass: true, evidence: "fine" }],
       },
     });
     expect(capture.prompt).toContain("WEB REQUESTED: needs the external paper");
+  });
+
+  it("carries the previous attempt's coverage map into the feedback section", async () => {
+    const capture: { prompt?: string } = {};
+    const llm = fakeLlm({ subtasks: [], coverageMap: [] }, capture);
+    await decompose(llm, "obj", truths, {
+      previous: {
+        subtasks: [{ id: "s1", description: "old subtask", servesTruths: ["t1"], dependsOn: [], needsWeb: false, webJustification: "" }],
+        coverageMap: [
+          { dimension: "History", handledBy: "s1", exclusionReason: "" },
+          { dimension: "Future outlook", handledBy: "", exclusionReason: "out of scope for this brief" },
+        ],
+      },
+      critique: {
+        verdicts: [{ criterionId: "d-breadth", pass: false, evidence: "missing a dimension" }],
+      },
+    });
+    expect(capture.prompt).toContain("History");
+    expect(capture.prompt).toContain("out of scope for this brief");
   });
 
   it("maps needsWeb and webJustification from the model output", async () => {
@@ -79,8 +106,9 @@ describe("decompose", () => {
         { description: "fetch the paper", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: true, webJustification: "the study text is external" },
         { description: "summarize", servesTruths: ["t1"], dependsOnIndices: [1], needsWeb: false, webJustification: "" },
       ],
+      coverageMap: [],
     });
-    const subtasks = await decompose(llm, "obj", truths, null);
+    const { subtasks } = await decompose(llm, "obj", truths, null);
     expect(subtasks[0].needsWeb).toBe(true);
     expect(subtasks[0].webJustification).toBe("the study text is external");
     expect(subtasks[1].needsWeb).toBe(false);
@@ -89,10 +117,43 @@ describe("decompose", () => {
 
   it("instructs the model about needsWeb in the prompt", async () => {
     const capture: { prompt?: string; system?: string } = {};
-    const llm = fakeLlm({ subtasks: [] }, capture);
+    const llm = fakeLlm({ subtasks: [], coverageMap: [] }, capture);
     await decompose(llm, "obj", truths, null);
     const fullRequest = `${capture.system}\n${capture.prompt}`;
     expect(fullRequest).toContain("needsWeb");
     expect((fullRequest.match(/needsWeb: set true ONLY/g)?.length) ?? 0).toBe(1);
+  });
+
+  it("instructs the model with the survey-instinct rule for the coverage map", async () => {
+    const capture: { prompt?: string; system?: string } = {};
+    const llm = fakeLlm({ subtasks: [], coverageMap: [] }, capture);
+    await decompose(llm, "obj", truths, null);
+    const fullRequest = `${capture.system}\n${capture.prompt}`;
+    expect(fullRequest).toContain("survey instinct");
+    expect(fullRequest).toContain("Silent narrowing");
+  });
+
+  it("parses coverageMap rows and maps a handledBy index to the real subtask id", async () => {
+    const llm = fakeLlm({
+      subtasks: [{ description: "first", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+      coverageMap: [
+        { dimension: "History", handledBy: "1", exclusionReason: "" },
+        { dimension: "Future outlook", handledBy: "", exclusionReason: "out of scope for this brief" },
+      ],
+    });
+    const { coverageMap } = await decompose(llm, "obj", truths, null);
+    expect(coverageMap).toEqual([
+      { dimension: "History", handledBy: "s1", exclusionReason: "" },
+      { dimension: "Future outlook", handledBy: "", exclusionReason: "out of scope for this brief" },
+    ]);
+  });
+
+  it("marks an out-of-range handledBy index as invalid so cov-breadth catches it", async () => {
+    const llm = fakeLlm({
+      subtasks: [{ description: "first", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+      coverageMap: [{ dimension: "History", handledBy: "9", exclusionReason: "" }],
+    });
+    const { coverageMap } = await decompose(llm, "obj", truths, null);
+    expect(coverageMap[0].handledBy).toBe("invalid:9");
   });
 });

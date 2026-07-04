@@ -1,10 +1,10 @@
 import { Llm } from "../llm/gateway";
-import { Truth, Subtask, failures } from "../shared/types";
+import { Truth, Subtask, CoverageMapRow, failures } from "../shared/types";
 import { refine, RefineOutcome } from "../shared/refine";
 import { judge } from "../shared/judge";
 import { deriveTruths } from "./truths";
 import { vetTruths, VetResult } from "./skeptic";
-import { decompose } from "./decompose";
+import { decompose, DecompositionResult } from "./decompose";
 import { coverageCritique } from "./coverage";
 import { decompositionRubric } from "./rubric";
 
@@ -12,7 +12,26 @@ export interface Foundations {
   truths: Truth[];
   vet: VetResult;
   subtasks: Subtask[];
-  decomposition: RefineOutcome<Subtask[]>;
+  coverageMap: CoverageMapRow[];
+  decomposition: RefineOutcome<DecompositionResult>;
+}
+
+/** Render a decomposition candidate for judging — the judge must SEE the
+ * coverage map (not just the subtasks) for d-breadth to be verifiable. */
+function renderCandidate(d: DecompositionResult): string {
+  return [
+    ...d.subtasks.map(
+      (s) =>
+        `${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
+          s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
+        })`
+    ),
+    ``,
+    `Coverage map:`,
+    ...d.coverageMap.map(
+      (r) => `- ${r.dimension}: ${r.handledBy ? `handled by ${r.handledBy}` : `excluded — ${r.exclusionReason || "(no reason given)"}`}`
+    ),
+  ].join("\n");
 }
 
 /**
@@ -34,26 +53,25 @@ export async function deriveFoundations(llm: Llm, objective: string): Promise<Fo
 
   const rubric = decompositionRubric(truths);
 
-  const decomposition = await refine<Subtask[]>(
+  const decomposition = await refine<DecompositionResult>(
     (feedback) => decompose(llm, objective, truths, feedback),
-    async (subtasks) => {
-      const mechanical = coverageCritique(truths, subtasks);
+    async (d) => {
+      const mechanical = coverageCritique(truths, d.subtasks, d.coverageMap);
       if (failures(mechanical).length > 0) return mechanical;
       return judge(llm, {
         rubric,
-        candidate: subtasks
-          .map(
-            (s) =>
-              `${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
-                s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
-              })`
-          )
-          .join("\n"),
+        candidate: renderCandidate(d),
         context: `Objective: ${objective}\nTruths:\n${truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`).join("\n")}`,
       });
     },
     { maxIterations: 5 }
   );
 
-  return { truths, vet, subtasks: decomposition.result, decomposition };
+  return {
+    truths,
+    vet,
+    subtasks: decomposition.result.subtasks,
+    coverageMap: decomposition.result.coverageMap,
+    decomposition,
+  };
 }

@@ -1,15 +1,16 @@
 import { Llm } from "../llm/gateway";
-import { Ontology, Subtask } from "../shared/types";
+import { Ontology } from "../shared/types";
 import { RefineOutcome } from "../shared/refine";
 import { VetResult } from "./skeptic";
 import { outputRubric } from "./rubric";
 import { generateAgentSpecs } from "./specs";
 import { deriveFoundations } from "./foundations";
+import { DecompositionResult } from "./decompose";
 
 export interface GenerationReport {
   ontology: Ontology;
   vet: VetResult;
-  decomposition: RefineOutcome<Subtask[]>;
+  decomposition: RefineOutcome<DecompositionResult>;
 }
 
 /**
@@ -28,6 +29,7 @@ export async function generateOntology(llm: Llm, objective: string): Promise<Gen
       subtasks: f.subtasks,
       agents,
       outputRubric: outputRubric(f.truths),
+      coverageMap: f.coverageMap,
     },
     vet: f.vet,
     decomposition: f.decomposition,

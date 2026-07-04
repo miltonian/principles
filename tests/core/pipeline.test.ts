@@ -14,7 +14,10 @@ const scriptedLlm = (): Llm =>
       case "truth_attack":
         return { verdict: "survives", strongestAttack: "none", justification: "solid" };
       case "decomposition":
-        return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }] };
+        return {
+          subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+          coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+        };
       case "rubric_verdicts":
         return {
           verdicts: [
@@ -22,6 +25,7 @@ const scriptedLlm = (): Llm =>
             { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
             { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
             { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+            { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
             { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
           ],
         };
@@ -42,6 +46,7 @@ describe("generateOntology", () => {
     expect(report.ontology.agents[0].id).toBe("agent-s1");
     expect(report.ontology.outputRubric.map((c) => c.id)).toEqual(["o-responsive", "o-grounded", "o-t1"]);
     expect(report.ontology.objective).toBe("evaluate study credibility");
+    expect(report.ontology.coverageMap).toEqual([{ dimension: "source credibility", handledBy: "s1", exclusionReason: "" }]);
   });
 
   it("throws when every truth is rejected (nothing to build on)", async () => {

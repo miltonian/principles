@@ -19,6 +19,18 @@ export interface Subtask {
   webJustification?: string;
 }
 
+/**
+ * One row of the decomposition's explicit breadth map: a dimension an expert
+ * treatment of the topic would cover, either handled by a subtask or
+ * explicitly excluded with a reason. Exactly one of handledBy/exclusionReason
+ * must be non-empty (see coverage.ts's unmappedBreadth).
+ */
+export interface CoverageMapRow {
+  dimension: string;
+  handledBy: string; // subtask id, or "" if excluded
+  exclusionReason: string; // non-empty iff excluded
+}
+
 /** One evaluation criterion in a rubric. */
 export interface Criterion {
   id: string;
@@ -62,4 +74,6 @@ export interface Ontology {
   subtasks: Subtask[];
   agents: AgentSpec[];
   outputRubric: Criterion[];
+  /** The decomposition's explicit breadth map (additive — old ontologies unaffected). */
+  coverageMap?: CoverageMapRow[];
 }

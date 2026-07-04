@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Llm } from "../llm/gateway";
-import { Truth, Subtask, failures } from "../shared/types";
+import { Truth, Subtask, CoverageMapRow, failures } from "../shared/types";
 import { RefineFeedback } from "../shared/refine";
 
 const DecompositionSchema = z.object({
@@ -13,7 +13,31 @@ const DecompositionSchema = z.object({
       webJustification: z.string(),
     })
   ),
+  coverageMap: z.array(
+    z.object({
+      dimension: z.string(),
+      handledBy: z.string(), // 1-based index (as text) into subtasks, or "" if excluded
+      exclusionReason: z.string(),
+    })
+  ),
 });
+
+/** Result of one decomposition attempt: subtasks plus the explicit breadth map. */
+export interface DecompositionResult {
+  subtasks: Subtask[];
+  coverageMap: CoverageMapRow[];
+}
+
+/** Map a model-cited 1-based index (as text) to a real subtask id, mirroring dependsOnIndices. */
+function mapHandledBy(raw: string, subtaskCount: number): string {
+  const trimmed = raw.trim();
+  if (trimmed === "") return "";
+  const n = Number(trimmed);
+  return Number.isInteger(n) && n >= 1 && n <= subtaskCount ? `s${n}` : `invalid:${trimmed}`;
+}
+
+const renderCoverageRow = (r: CoverageMapRow): string =>
+  `- ${r.dimension}: ${r.handledBy ? `handled by ${r.handledBy}` : `excluded — ${r.exclusionReason || "(no reason given)"}`}`;
 
 /**
  * Decompose the objective into subtasks that CITE the truths they serve.
@@ -25,18 +49,21 @@ export async function decompose(
   llm: Llm,
   objective: string,
   truths: Truth[],
-  feedback: RefineFeedback<Subtask[]> | null
-): Promise<Subtask[]> {
+  feedback: RefineFeedback<DecompositionResult> | null
+): Promise<DecompositionResult> {
   const feedbackSection = feedback
     ? [
         ``,
         `## Previous attempt (REVISE this — do not start over)`,
-        ...feedback.previous.map(
+        ...feedback.previous.subtasks.map(
           (s) =>
             `- ${s.id}: ${s.description} (serves: ${s.servesTruths.join(",")}; depends: ${s.dependsOn.join(",") || "none"}${
               s.needsWeb ? `; WEB REQUESTED: ${s.webJustification}` : ""
             })`
         ),
+        ``,
+        `## Previous coverage map`,
+        ...feedback.previous.coverageMap.map(renderCoverageRow),
         ``,
         `## What failed — fix exactly these`,
         ...failures(feedback.critique).map((v) => `- ${v.criterionId}: ${v.evidence}`),
@@ -59,6 +86,12 @@ export async function decompose(
       "  user's prompt cannot be assumed to contain (e.g. retrieving a linked study). When true,",
       "  webJustification must concretely name what external material and why it is needed;",
       "  when false, webJustification is an empty string.",
+      "- First enumerate the major dimensions an expert, comprehensive treatment of this topic",
+      "  would cover — the survey instinct. Every dimension must be handled by a subtask or",
+      "  explicitly excluded with a reason. Silent narrowing is the failure mode you exist to prevent.",
+      "- coverageMap: one row per dimension. handledBy is the 1-based index (as text) of the subtask",
+      "  that handles it, or an empty string if the dimension is excluded; exclusionReason must be",
+      "  non-empty when handledBy is empty, and empty when handledBy is set.",
     ].join("\n"),
     prompt: [
       `## Objective`,
@@ -73,7 +106,7 @@ export async function decompose(
     schemaName: "decomposition",
   });
 
-  return result.subtasks.map((s, i) => ({
+  const subtasks: Subtask[] = result.subtasks.map((s, i) => ({
     id: `s${i + 1}`,
     description: s.description,
     servesTruths: s.servesTruths,
@@ -83,4 +116,12 @@ export async function decompose(
     needsWeb: s.needsWeb,
     webJustification: s.webJustification.trim(),
   }));
+
+  const coverageMap: CoverageMapRow[] = result.coverageMap.map((r) => ({
+    dimension: r.dimension,
+    handledBy: mapHandledBy(r.handledBy, result.subtasks.length),
+    exclusionReason: r.exclusionReason.trim(),
+  }));
+
+  return { subtasks, coverageMap };
 }

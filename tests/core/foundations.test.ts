@@ -11,7 +11,10 @@ const scriptedLlm = (): Llm =>
       case "truth_attack":
         return { verdict: "survives", strongestAttack: "none", justification: "solid" };
       case "decomposition":
-        return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }] };
+        return {
+          subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+          coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+        };
       case "rubric_verdicts":
         return {
           verdicts: [
@@ -19,6 +22,7 @@ const scriptedLlm = (): Llm =>
             { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
             { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
             { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+            { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
             { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
           ],
         };
@@ -47,6 +51,7 @@ describe("deriveFoundations", () => {
                 webJustification: "the study text is external",
               },
             ],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
           };
         case "rubric_verdicts":
           capture.prompt = (req as unknown as { prompt: string }).prompt;
@@ -56,6 +61,7 @@ describe("deriveFoundations", () => {
               { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
               { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
               { criterionId: "d-web", pass: true, evidence: "web request is justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
               { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
             ],
           };
@@ -68,6 +74,46 @@ describe("deriveFoundations", () => {
     expect(capture.prompt).toContain("WEB REQUESTED: the study text is external");
   });
 
+  it("includes a coverage-map row in the judge prompt so d-breadth can be verified", async () => {
+    const capture: { prompt?: string } = {};
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "typed_truths":
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r" }] };
+        case "truth_attack":
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [
+              { dimension: "source credibility", handledBy: "1", exclusionReason: "" },
+              { dimension: "publication bias", handledBy: "", exclusionReason: "out of scope for this objective" },
+            ],
+          };
+        case "rubric_verdicts":
+          capture.prompt = (req as unknown as { prompt: string }).prompt;
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    await deriveFoundations(llm, "evaluate study credibility");
+    expect(capture.prompt).toContain("Coverage map:");
+    expect(capture.prompt).toContain("source credibility");
+    expect(capture.prompt).toContain("publication bias");
+    expect(capture.prompt).toContain("out of scope for this objective");
+  });
+
   it("derives, vets, and decomposes without generating agent specs", async () => {
     const f = await deriveFoundations(scriptedLlm(), "evaluate study credibility");
     expect(f.truths).toHaveLength(1);
@@ -77,6 +123,7 @@ describe("deriveFoundations", () => {
     expect(f.subtasks).toHaveLength(1);
     expect(f.subtasks[0].id).toBe("s1");
     expect(f.decomposition.status).toBe("converged");
+    expect(f.coverageMap).toEqual([{ dimension: "source credibility", handledBy: "s1", exclusionReason: "" }]);
     // No "agent_spec" schema was requested — the scripted fake would have thrown.
   });
 

@@ -198,7 +198,10 @@ describe("compileRubric", () => {
             ? { verdict: "survives", strongestAttack: "none", justification: "solid" }
             : { verdict: "demote", strongestAttack: "cannot verify", justification: "j" };
         case "decomposition":
-          return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }] };
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
         case "rubric_verdicts":
           // passes BOTH the decomposition judge (d-*) and the meta-judge (m-*):
           return req.prompt.includes("m-gradeable")
@@ -212,6 +215,7 @@ describe("compileRubric", () => {
                 { criterionId: "d-feasible", pass: true, evidence: "text-only" },
                 { criterionId: "d-complete", pass: true, evidence: "covers objective" },
                 { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+                { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
                 { criterionId: "d-t1", pass: true, evidence: "constraint carried" },
               ] };
         case "rubric_guidance":
