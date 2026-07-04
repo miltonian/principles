@@ -7,6 +7,9 @@ const page = (rows: unknown[]) => JSON.stringify({ rows: rows.map((row) => ({ ro
 
 const FIXED_NOW = "2026-07-03T00:00:00.000Z";
 
+/** Flush pending microtasks/macrotasks so deferred-promise fakes can advance one step. */
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 /** In-memory fake filesystem shared by all deps helpers in a test. */
 function makeFakeFs() {
   const files = new Map<string, string>();
@@ -245,6 +248,158 @@ describe("research-pilot run", () => {
 
     expect(code).toBe(2);
     expect(llmCalls).toHaveLength(0);
+  });
+
+  describe("--concurrency", () => {
+    /** A controllable fake LLM whose calls pause on a deferred promise until released, tracking in-flight count. */
+    function makeDeferredLlm() {
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const releases: Array<() => void> = [];
+      const llm: Llm = (async (req: any) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise<void>((resolve) => releases.push(resolve));
+        inFlight--;
+        return { report: `# ${req.prompt}` };
+      }) as unknown as Llm;
+      return { llm, releases, getMaxInFlight: () => maxInFlight };
+    }
+
+    it("--concurrency 2 runs at most two items in flight simultaneously, writes all responses, one log line each", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+        { sampleId: "d", prompt: "Prompt D" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "2"], deps);
+
+      await flush();
+      expect(releases.length).toBe(2); // exactly two in flight at first wave
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(2);
+      for (const id of ["a", "b", "c", "d"]) {
+        expect(fakeFs.files.has(`benchmarks/research-pilot/responses/bare/${id}.md`)).toBe(true);
+      }
+      const log = fakeFs.files.get("benchmarks/research-pilot/run-log-bare.jsonl")!;
+      expect(log.trim().split("\n")).toHaveLength(4);
+    });
+
+    it("defaults to concurrency 1 (sequential): only one item in flight at a time", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare"], deps);
+
+      await flush();
+      expect(releases.length).toBe(1);
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(1);
+    });
+
+    it("--concurrency 0 is rejected with exit 2", async () => {
+      const { deps, fakeFs } = makeDeps({ confirmYes: true });
+      seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+      const code = await run(["run", "--arm", "bare", "--concurrency", "0"], deps);
+      expect(code).toBe(2);
+    });
+
+    it("non-finite --concurrency is rejected with exit 2", async () => {
+      const { deps, fakeFs } = makeDeps({ confirmYes: true });
+      seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+      const code = await run(["run", "--arm", "bare", "--concurrency", "notanumber"], deps);
+      expect(code).toBe(2);
+    });
+
+    it("clamps a requested concurrency above 4 down to 4, logging a note", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, out, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(
+        fakeFs,
+        Array.from({ length: 6 }, (_, i) => ({ sampleId: `s${i}`, prompt: `Prompt ${i}` }))
+      );
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "10"], deps);
+
+      await flush();
+      expect(releases.length).toBe(4); // clamped to max 4, not 10
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(4);
+      expect(out.some((l) => l.includes("10") && l.includes("4"))).toBe(true);
+    });
+
+    it("stops launching new items after one item's arm throws mid-pool, exits 2 naming it, and persists completed items (no new launches after failure)", async () => {
+      const callOrder: string[] = [];
+      let releaseA: () => void = () => {};
+      const llm: Llm = (async (req: any) => {
+        const prompt = req.prompt as string;
+        callOrder.push(prompt);
+        if (prompt.startsWith("Prompt B")) throw new Error("boom-b");
+        if (prompt.startsWith("Prompt A")) {
+          await new Promise<void>((resolve) => {
+            releaseA = resolve;
+          });
+        }
+        return { report: `# ${prompt}` };
+      }) as unknown as Llm;
+
+      const { deps, err, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+        { sampleId: "d", prompt: "Prompt D" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "2"], deps);
+
+      await flush(); // let "a" start (deferred) and "b" fail
+
+      releaseA();
+      await flush();
+
+      const code = await runPromise;
+
+      expect(code).toBe(2);
+      expect(err.join("\n")).toContain("b");
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/a.md")).toBe(true);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/b.md")).toBe(false);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/c.md")).toBe(false);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/d.md")).toBe(false);
+      expect(callOrder.some((p) => p.startsWith("Prompt C"))).toBe(false);
+      expect(callOrder.some((p) => p.startsWith("Prompt D"))).toBe(false);
+    });
   });
 
 });

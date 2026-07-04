@@ -101,9 +101,12 @@ async function cmdFetch(deps: PilotDeps): Promise<number> {
   }
 }
 
-function parseRunFlags(rest: string[]): { arm: Arm; limit?: number } | { badFlag: string } {
+const MAX_CONCURRENCY = 4;
+
+function parseRunFlags(rest: string[]): { arm: Arm; limit?: number; concurrency?: number } | { badFlag: string } {
   let arm: string | undefined;
   let limit: number | undefined;
+  let concurrency: number | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--arm") arm = rest[++i];
@@ -112,20 +115,69 @@ function parseRunFlags(rest: string[]): { arm: Arm; limit?: number } | { badFlag
       const n = Number(raw);
       if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return { badFlag: `--limit ${raw ?? ""}` };
       limit = n;
+    } else if (a === "--concurrency") {
+      const raw = rest[++i];
+      const n = Number(raw);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return { badFlag: `--concurrency ${raw ?? ""}` };
+      concurrency = n;
     } else return { badFlag: a };
   }
   if (arm !== "bare" && arm !== "principles") return { badFlag: `--arm ${arm ?? "(missing, expected bare|principles)"}` };
-  return { arm, limit };
+  return { arm, limit, concurrency };
+}
+
+/**
+ * Runs `items` through `worker`, at most `concurrency` in flight at once.
+ * If any item's worker call rejects: in-flight items are allowed to finish, no
+ * new items are launched, and the first failure is reported back to the caller.
+ */
+async function runWorkerPool<T extends { sampleId: string }>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<{ failedSampleId?: string; error?: unknown }> {
+  let nextIndex = 0;
+  let stopLaunching = false;
+  let failedSampleId: string | undefined;
+  let error: unknown;
+
+  async function lane(): Promise<void> {
+    while (!stopLaunching) {
+      const i = nextIndex++;
+      if (i >= items.length) return;
+      const item = items[i];
+      try {
+        await worker(item);
+      } catch (e) {
+        stopLaunching = true;
+        failedSampleId = item.sampleId;
+        error = e;
+        return;
+      }
+    }
+  }
+
+  const laneCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: laneCount }, () => lane()));
+
+  return { failedSampleId, error };
 }
 
 async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
   try {
     const parsed = parseRunFlags(rest);
     if ("badFlag" in parsed) {
-      deps.error(`Unknown or invalid flag: ${parsed.badFlag}. Usage: research-pilot run --arm bare|principles [--limit N] [--yes]`);
+      deps.error(
+        `Unknown or invalid flag: ${parsed.badFlag}. Usage: research-pilot run --arm bare|principles [--limit N] [--concurrency N] [--yes]`
+      );
       return 2;
     }
     const { arm, limit } = parsed;
+    let concurrency = parsed.concurrency ?? 1;
+    if (concurrency > MAX_CONCURRENCY) {
+      deps.log(`Requested --concurrency ${concurrency} exceeds the max of ${MAX_CONCURRENCY}; clamping to ${MAX_CONCURRENCY}.`);
+      concurrency = MAX_CONCURRENCY;
+    }
 
     if (!deps.exists(MANIFEST_PATH)) {
       deps.error(`No manifest at ${MANIFEST_PATH} — run fetch first.`);
@@ -172,7 +224,7 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
     deps.mkdirp(responsesDir);
     deps.mkdirp(BENCH_DIR);
 
-    for (const task of pending) {
+    const runOne = async (task: ResearchTask): Promise<void> => {
       const result = arm === "bare" ? await runBareArm(deps.llm, task) : await runPrinciplesArm(deps.llm, task, deps.runners);
 
       deps.writeFile(`${responsesDir}/${task.sampleId}.md`, result.markdown);
@@ -185,6 +237,15 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
           result.unverified.length ? result.unverified.join(", ") : "none"
         }`
       );
+    };
+
+    const { failedSampleId, error } = await runWorkerPool(pending, concurrency, runOne);
+    if (failedSampleId !== undefined) {
+      const message = error instanceof Error ? error.message : String(error);
+      deps.error(
+        `run failed for arm "${arm}": item "${failedSampleId}" threw (${message}); completed items were persisted and are resumable, remaining items were not started.`
+      );
+      return 2;
     }
 
     return 0;
