@@ -68,9 +68,9 @@ async def main():
             rubrics=rubrics, pdf_paths={sid: md}, save_results=False
         )
         rows = df.to_dict("records")
-        real = [r for r in rows if str(r.get("verdict", "")).lower() != "error" and r.get("score") is not None]
-        if not real:
-            print(f"  {sid}: ALL verdicts errored — not caching (fix quota/billing and rerun)", flush=True)
+        errored = [r for r in rows if str(r.get("verdict", "")).lower() == "error" or r.get("score") is None]
+        if errored:
+            print(f"  {sid}: {len(errored)}/{len(rows)} verdicts errored — not caching (rerun when quota allows)", flush=True)
             continue
         with open(out_file, "w") as f:
             for r in rows:
