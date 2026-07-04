@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { Llm } from "../llm/gateway";
-import { Ontology } from "../shared/types";
+import { Ontology, Criterion } from "../shared/types";
 import { topoLevels } from "../shared/graph";
 import { refine } from "../shared/refine";
 import { judge } from "../shared/judge";
 import { Blackboard, BlackboardEntry } from "./blackboard";
 import { runAgent, AgentOutput } from "./agent";
 import { plan } from "./planner";
+import { buildContract, renderContract } from "./contract";
+import { runGates } from "./renderGuard";
 
 const AnswerSchema = z.object({ answer: z.string() });
 
@@ -16,7 +18,9 @@ export interface RunResult {
   escaped: boolean;
   board: BlackboardEntry[];
   // Ids of agents whose refine loop did not converge (escalated/exhausted): their
-  // board entries are retained but were never rubric-verified.
+  // board entries are retained but were never rubric-verified. May also contain
+  // the literal "synthesis" when the final deliverable itself never converged
+  // (its best candidate still ships — see the synthesis refine loop below).
   unverified: string[];
 }
 
@@ -76,32 +80,66 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
     }
   }
 
-  const synthesis = await llm({
-    system: [
-      "You synthesize the final answer from the work on the blackboard.",
-      "Use everything: results AND notes. Preserve nuance; surface disagreements between agents instead of papering over them.",
-      ...(unverified.length > 0
-        ? [
-            ``,
-            `## Unverified contributions`,
-            `The following agents never converged on a rubric-passing output: ${unverified.join(", ")}.`,
-            `Treat their contributions with caution: do not present them as verified fact, and surface the uncertainty to the user instead of papering over it.`,
-          ]
-        : []),
-    ].join("\n"),
-    prompt: [
-      `## User prompt`,
-      userPrompt,
-      ``,
-      `## Blackboard`,
-      board.render(),
-    ].join("\n"),
-    schema: z.object({ answer: z.string() }),
-    schemaName: "synthesis",
-  });
+  const contract = buildContract(triage.deliverableGenre, triage.deliverableAudience, triage.agents, board.all());
+
+  const contractCriteria: Criterion[] = [
+    { id: "c-contract-genre", source: "generic", description: `The deliverable is a ${contract.genre} for ${contract.audience}, written as a standalone finished document.` },
+    { id: "c-contract-sections", source: "generic", description: `The deliverable substantively covers every outline item: ${contract.sections.map((s) => s.title).join("; ")}.` },
+    { id: "c-contract-clean", source: "generic", description: `No internal-process narration (agents, workspaces, roles); verification caveats appear only in a short closing "Verification notes" section.` },
+  ];
+
+  const synthesisOutcome = await refine<{ answer: string }>(
+    (feedback) =>
+      llm({
+        system: `You are the author of the final deliverable.`,
+        prompt: [
+          `<documents>`,
+          ...board.all().map((e) =>
+            [`<document title="${e.subtask.slice(0, 80)}">`, e.result, e.notes ? `Notes: ${e.notes}` : ``, `</document>`].join("\n")
+          ),
+          `</documents>`,
+          ``,
+          `<instructions>`,
+          `## Request`,
+          userPrompt,
+          ``,
+          renderContract(contract),
+          ...(unverified.length > 0
+            ? [
+                ``,
+                `Contributions from ${unverified.join(", ")} did not pass verification; reflect that ONLY inside the closing "Verification notes" section.`,
+              ]
+            : []),
+          ...(feedback
+            ? [
+                ``,
+                `## Your previous draft was rejected — fix exactly this`,
+                feedback.critique.verdicts.filter((v) => !v.pass).map((v) => `${v.criterionId}: ${v.evidence}`).join("\n"),
+              ]
+            : []),
+          `</instructions>`,
+        ].join("\n"),
+        schema: z.object({ answer: z.string() }),
+        schemaName: "synthesis",
+      }),
+    async (candidate) => {
+      const gates = runGates(candidate.answer, contract);
+      const critique = await judge(llm, {
+        rubric: [...ontology.outputRubric, ...contractCriteria],
+        candidate: candidate.answer,
+        context: `Final deliverable for: ${ontology.objective}. User request: ${userPrompt}`,
+      });
+      if (!gates.pass) {
+        critique.verdicts.push(...gates.failures.map((f, i) => ({ criterionId: `gate-${i}`, pass: false, evidence: f })));
+      }
+      return critique;
+    },
+    { maxIterations: 2 }
+  );
+  if (synthesisOutcome.status !== "converged") unverified.push("synthesis");
 
   return {
-    answer: synthesis.answer,
+    answer: synthesisOutcome.result.answer,
     planned: triage.agents.map((a) => a.id),
     escaped: false,
     board: board.all(),
