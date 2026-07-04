@@ -54,7 +54,13 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
             ),
           (candidate) =>
             judge(llm, {
-              rubric: ontology.outputRubric,
+              // Scope truth-derived criteria to the truths THIS agent's subtask
+              // cites (the citation graph exists for exactly this): judging one
+              // agent's partial output against whole-objective constraints fails
+              // every agent on criteria that belong to its siblings' subtasks.
+              rubric: ontology.outputRubric.filter(
+                (c) => c.source !== "truth" || (c.truthId !== undefined && spec.servesTruths.includes(c.truthId))
+              ),
               candidate: `Result:\n${candidate.result}\n\nNotes:\n${candidate.notes}`,
               context: `Agent "${spec.name}" (${spec.instructions}) answering: ${userPrompt}`,
             }),
