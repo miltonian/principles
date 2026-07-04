@@ -77,7 +77,7 @@ describe("plan", () => {
 
     await plan(llm, ontologyWithTruths, "prompt");
     expect(capturedPrompt).toContain("## Truths");
-    expect(capturedPrompt).toContain("- constraint Deliverable is a video tutorial");
-    expect(capturedPrompt).toContain("- definition Video tutorial: step-by-step visual guide");
+    expect(capturedPrompt).toMatch(/- t\d+ \[constraint\]: Deliverable is a video tutorial/);
+    expect(capturedPrompt).toMatch(/- t\d+ \[definition\]: Video tutorial: step-by-step visual guide/);
   });
 });

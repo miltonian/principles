@@ -4,15 +4,6 @@ import { Llm } from "../../src/llm/gateway";
 
 const fakeLlm = (response: unknown): Llm => (async () => response) as unknown as Llm;
 
-const capturingFakeLlm = (response: unknown): { llm: Llm; capturedRequest: { system?: string; prompt: string } | null } => {
-  let capturedRequest: { system?: string; prompt: string } | null = null;
-  const llm = (async (req: any) => {
-    capturedRequest = { system: req.system, prompt: req.prompt };
-    return response;
-  }) as unknown as Llm;
-  return { llm, capturedRequest: null };
-};
-
 describe("deriveTruths", () => {
   it("assigns sequential ids in code, not from the model", async () => {
     const llm = fakeLlm({

@@ -39,7 +39,7 @@ export async function plan(llm: Llm, ontology: Ontology, userPrompt: string): Pr
       ...(ontology.truths && ontology.truths.length > 0
         ? [
             `## Truths`,
-            ...ontology.truths.map((t) => `- ${t.type} ${t.statement}`),
+            ...ontology.truths.map((t) => `- ${t.id} [${t.type}]: ${t.statement}`),
             ``,
           ]
         : []),
