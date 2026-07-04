@@ -36,4 +36,12 @@ describe("plan", () => {
     expect(result.fits).toBe(false);
     expect(result.agents).toEqual([]);
   });
+
+  it("passes deliverable genre/audience through and tolerates their absence", async () => {
+    const withFields = await plan(fakeLlm({ fits: true, reason: "r", selectedAgentIds: ["agent-s1"], deliverableGenre: "design doc", deliverableAudience: "ML engineers" }), ontology, "p");
+    expect(withFields.deliverableGenre).toBe("design doc");
+    expect(withFields.deliverableAudience).toBe("ML engineers");
+    const without = await plan(fakeLlm({ fits: true, reason: "r", selectedAgentIds: ["agent-s1"] }), ontology, "p");
+    expect(without.deliverableGenre).toBeUndefined();
+  });
 });

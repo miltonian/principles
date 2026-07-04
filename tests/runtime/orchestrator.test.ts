@@ -24,7 +24,7 @@ const scriptedLlm = (log: string[]): Llm =>
     log.push(req.schemaName);
     switch (req.schemaName) {
       case "triage_plan":
-        return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"] };
+        return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"], deliverableGenre: "analysis", deliverableAudience: "reviewer" };
       case "agent_output":
         return { notes: "n", result: "agent deliverable" };
       case "rubric_verdicts":
@@ -42,7 +42,7 @@ const scriptedLlmAlwaysFailingRubric = (log: string[]): Llm =>
     log.push(req.schemaName);
     switch (req.schemaName) {
       case "triage_plan":
-        return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"] };
+        return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"], deliverableGenre: "analysis", deliverableAudience: "reviewer" };
       case "agent_output":
         return { notes: "n", result: "agent deliverable" };
       case "rubric_verdicts":
@@ -72,7 +72,7 @@ describe("runOntology", () => {
     const llm = (async <T>(req: LlmRequest<T>) => {
       switch (req.schemaName) {
         case "triage_plan":
-          return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1"] };
+          return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1"], deliverableGenre: "analysis", deliverableAudience: "reviewer" };
         case "agent_output":
           return { notes: "n", result: "agent deliverable" };
         case "rubric_verdicts":
