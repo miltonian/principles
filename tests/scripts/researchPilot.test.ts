@@ -92,6 +92,29 @@ describe("research-pilot fetch", () => {
     expect(err.join("\n")).toContain("responses/bare/leftover.md");
     expect(fakeFs.files.has("benchmarks/research-pilot/manifest.json")).toBe(false);
   });
+
+  it("a fetchText that throws (network error) is caught and returns 2 with the error logged, not a rejection", async () => {
+    const { deps, err } = makeDeps({
+      fetchText: async () => {
+        throw new Error("ECONNRESET");
+      },
+    });
+
+    const code = await run(["fetch"], deps);
+
+    expect(code).toBe(2);
+    expect(err.join("\n")).toContain("ECONNRESET");
+  });
+
+  it("a non-JSON/rows-less fetched page exits 2 without caching anything", async () => {
+    const { deps, fakeFs } = makeDeps({ fetchText: async () => "<html>oops</html>" });
+
+    const code = await run(["fetch"], deps);
+
+    expect(code).toBe(2);
+    expect([...fakeFs.files.keys()].some((f) => f.startsWith(".bench-cache/"))).toBe(false);
+    expect(fakeFs.files.has("benchmarks/research-pilot/manifest.json")).toBe(false);
+  });
 });
 
 function seedManifestAndCache(fakeFs: ReturnType<typeof makeFakeFs>, items: { sampleId: string; prompt: string }[]) {
@@ -181,6 +204,49 @@ describe("research-pilot run", () => {
     const code = await run(["run", "--arm", "bare", "--limit", "notanumber"], deps);
     expect(code).toBe(2);
   });
+
+  it("negative --limit is rejected with exit 2", async () => {
+    const { deps, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+    const code = await run(["run", "--arm", "bare", "--limit", "-1"], deps);
+    expect(code).toBe(2);
+  });
+
+  it("errors 2 when a manifest sample id is missing from cached pages, naming it, invoking no arm", async () => {
+    const { deps, err, llmCalls, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [
+      { sampleId: "a", prompt: "Prompt A" },
+      { sampleId: "b", prompt: "Prompt B" },
+    ]);
+    const manifest = JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest.json")!);
+    manifest.items.push({ sampleId: "missing-id", rubricCount: 1 });
+    manifest.count = manifest.items.length;
+    fakeFs.files.set("benchmarks/research-pilot/manifest.json", JSON.stringify(manifest));
+
+    const code = await run(["run", "--arm", "bare"], deps);
+
+    expect(code).toBe(2);
+    expect(llmCalls).toHaveLength(0);
+    expect(err.join("\n")).toContain("missing-id");
+  });
+
+  it("errors 2 (not 0) when the cache dir exists but is empty, even though a manifest exists", async () => {
+    const { deps, llmCalls, fakeFs } = makeDeps({ confirmYes: true });
+    const manifest = {
+      dataset: "ScaleAI/researchrubrics",
+      seed: 20260703,
+      count: 1,
+      items: [{ sampleId: "a", rubricCount: 1 }],
+    };
+    fakeFs.files.set("benchmarks/research-pilot/manifest.json", JSON.stringify(manifest));
+    fakeFs.dirs.add(".bench-cache/researchrubrics"); // exists but has no cached page files
+
+    const code = await run(["run", "--arm", "bare"], deps);
+
+    expect(code).toBe(2);
+    expect(llmCalls).toHaveLength(0);
+  });
+
 });
 
 describe("research-pilot status", () => {

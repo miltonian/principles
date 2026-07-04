@@ -48,41 +48,57 @@ function listResponseFiles(deps: PilotDeps): string[] {
 }
 
 async function cmdFetch(deps: PilotDeps): Promise<number> {
-  const stale = listResponseFiles(deps);
-  if (stale.length > 0) {
-    deps.error(
-      `Refusing to overwrite ${MANIFEST_PATH}: response file(s) already exist (stale-mixing guard):\n` +
-        stale.map((f) => `  - ${f}`).join("\n")
-    );
+  try {
+    const stale = listResponseFiles(deps);
+    if (stale.length > 0) {
+      deps.error(
+        `Refusing to overwrite ${MANIFEST_PATH}: response file(s) already exist (stale-mixing guard):\n` +
+          stale.map((f) => `  - ${f}`).join("\n")
+      );
+      return 2;
+    }
+
+    const pages: string[] = [];
+    let offset = 0;
+    while (offset < 200) {
+      const url = pageUrl(offset);
+      const text = await deps.fetchText(url);
+
+      let parsed: { rows?: unknown[] } | undefined;
+      try {
+        parsed = JSON.parse(text) as { rows?: unknown[] };
+      } catch {
+        parsed = undefined;
+      }
+      if (!parsed || !Array.isArray(parsed.rows)) {
+        deps.error(`Fetched page at offset ${offset} is not valid JSON with a "rows" array (url: ${url}); nothing cached.`);
+        return 2;
+      }
+
+      deps.mkdirp(CACHE_DIR);
+      deps.writeFile(`${CACHE_DIR}/page-${offset}.json`, text);
+      pages.push(text);
+
+      if (parsed.rows.length === 0) break;
+      offset += 100;
+    }
+
+    const tasks = parseRowsPages(pages);
+    const sampled = sampleTasks(tasks, SAMPLE_COUNT, SEED);
+    const manifest = buildPilotManifest(sampled, SEED);
+
+    deps.mkdirp(BENCH_DIR);
+    deps.writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+
+    deps.log(`Wrote ${MANIFEST_PATH} with ${manifest.count} task(s):`);
+    for (const item of manifest.items) {
+      deps.log(`  - ${item.sampleId} (${item.rubricCount} rubrics)`);
+    }
+    return 0;
+  } catch (e: any) {
+    deps.error(`fetch failed: ${e.message ?? e}`);
     return 2;
   }
-
-  const pages: string[] = [];
-  let offset = 0;
-  while (offset < 200) {
-    const url = pageUrl(offset);
-    const text = await deps.fetchText(url);
-    deps.mkdirp(CACHE_DIR);
-    deps.writeFile(`${CACHE_DIR}/page-${offset}.json`, text);
-    pages.push(text);
-
-    const parsed = JSON.parse(text) as { rows?: unknown[] };
-    if (!parsed.rows || parsed.rows.length === 0) break;
-    offset += 100;
-  }
-
-  const tasks = parseRowsPages(pages);
-  const sampled = sampleTasks(tasks, SAMPLE_COUNT, SEED);
-  const manifest = buildPilotManifest(sampled, SEED);
-
-  deps.mkdirp(BENCH_DIR);
-  deps.writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-
-  deps.log(`Wrote ${MANIFEST_PATH} with ${manifest.count} task(s):`);
-  for (const item of manifest.items) {
-    deps.log(`  - ${item.sampleId} (${item.rubricCount} rubrics)`);
-  }
-  return 0;
 }
 
 function parseRunFlags(rest: string[]): { arm: Arm; limit?: number } | { badFlag: string } {
@@ -94,7 +110,7 @@ function parseRunFlags(rest: string[]): { arm: Arm; limit?: number } | { badFlag
     else if (a === "--limit") {
       const raw = rest[++i];
       const n = Number(raw);
-      if (!Number.isFinite(n)) return { badFlag: `--limit ${raw ?? ""}` };
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return { badFlag: `--limit ${raw ?? ""}` };
       limit = n;
     } else return { badFlag: a };
   }
@@ -103,82 +119,98 @@ function parseRunFlags(rest: string[]): { arm: Arm; limit?: number } | { badFlag
 }
 
 async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
-  const parsed = parseRunFlags(rest);
-  if ("badFlag" in parsed) {
-    deps.error(`Unknown or invalid flag: ${parsed.badFlag}. Usage: research-pilot run --arm bare|principles [--limit N] [--yes]`);
-    return 2;
-  }
-  const { arm, limit } = parsed;
+  try {
+    const parsed = parseRunFlags(rest);
+    if ("badFlag" in parsed) {
+      deps.error(`Unknown or invalid flag: ${parsed.badFlag}. Usage: research-pilot run --arm bare|principles [--limit N] [--yes]`);
+      return 2;
+    }
+    const { arm, limit } = parsed;
 
-  if (!deps.exists(MANIFEST_PATH)) {
-    deps.error(`No manifest at ${MANIFEST_PATH} — run fetch first.`);
-    return 2;
-  }
-  if (!deps.exists(CACHE_DIR)) {
-    deps.error(`No cached dataset pages at ${CACHE_DIR} — run fetch first.`);
-    return 2;
-  }
+    if (!deps.exists(MANIFEST_PATH)) {
+      deps.error(`No manifest at ${MANIFEST_PATH} — run fetch first.`);
+      return 2;
+    }
+    if (!deps.exists(CACHE_DIR)) {
+      deps.error(`No cached dataset pages at ${CACHE_DIR} — run fetch first.`);
+      return 2;
+    }
 
-  const manifest = JSON.parse(deps.readFile(MANIFEST_PATH)) as PilotManifest;
-  const pageFiles = deps.listDir(CACHE_DIR).filter((f) => f.endsWith(".json"));
-  const pageTexts = pageFiles.map((f) => deps.readFile(`${CACHE_DIR}/${f}`));
-  const allTasks = parseRowsPages(pageTexts);
-  const bySampleId = new Map(allTasks.map((t) => [t.sampleId, t]));
+    const manifest = JSON.parse(deps.readFile(MANIFEST_PATH)) as PilotManifest;
+    const pageFiles = deps.listDir(CACHE_DIR).filter((f) => f.endsWith(".json"));
+    const pageTexts = pageFiles.map((f) => deps.readFile(`${CACHE_DIR}/${f}`));
+    const allTasks = parseRowsPages(pageTexts);
+    const bySampleId = new Map(allTasks.map((t) => [t.sampleId, t]));
 
-  let items: ResearchTask[] = manifest.items
-    .map((it) => bySampleId.get(it.sampleId))
-    .filter((t): t is ResearchTask => t !== undefined);
+    const missingIds = manifest.items.filter((it) => !bySampleId.has(it.sampleId)).map((it) => it.sampleId);
+    if (missingIds.length > 0) {
+      deps.error(
+        `Manifest sample id(s) not found in cached pages at ${CACHE_DIR}: ${missingIds.join(", ")}. Run \`research-pilot fetch\` to refresh the cache.`
+      );
+      return 2;
+    }
 
-  if (limit !== undefined) items = items.slice(0, limit);
+    let items: ResearchTask[] = manifest.items.map((it) => bySampleId.get(it.sampleId) as ResearchTask);
 
-  const responsesDir = `${RESPONSES_DIR}/${arm}`;
-  const pending = items.filter((t) => !deps.exists(`${responsesDir}/${t.sampleId}.md`));
+    if (limit !== undefined) items = items.slice(0, limit);
 
-  if (pending.length === 0) {
-    deps.log(`Nothing to run for arm "${arm}" — all ${items.length} item(s) already have responses.`);
+    const responsesDir = `${RESPONSES_DIR}/${arm}`;
+    const pending = items.filter((t) => !deps.exists(`${responsesDir}/${t.sampleId}.md`));
+
+    if (pending.length === 0) {
+      deps.log(`Nothing to run for arm "${arm}" — all ${items.length} item(s) already have responses.`);
+      return 0;
+    }
+
+    if (!deps.confirmYes) {
+      deps.error(
+        `This will invoke the LLM ${pending.length} time(s) for arm "${arm}" (of ${items.length} total item(s)). Re-run with --yes to confirm.`
+      );
+      return 2;
+    }
+
+    deps.mkdirp(responsesDir);
+    deps.mkdirp(BENCH_DIR);
+
+    for (const task of pending) {
+      const result = arm === "bare" ? await runBareArm(deps.llm, task) : await runPrinciplesArm(deps.llm, task, deps.runners);
+
+      deps.writeFile(`${responsesDir}/${task.sampleId}.md`, result.markdown);
+      deps.appendFile(
+        runLogPath(arm),
+        `${JSON.stringify({ sampleId: task.sampleId, wordCount: result.wordCount, unverified: result.unverified, at: deps.now() })}\n`
+      );
+      deps.log(
+        `[${arm}] ${task.sampleId} — ${result.wordCount} words, unverified: ${
+          result.unverified.length ? result.unverified.join(", ") : "none"
+        }`
+      );
+    }
+
     return 0;
-  }
-
-  if (!deps.confirmYes) {
-    deps.error(
-      `This will invoke the LLM ${pending.length} time(s) for arm "${arm}" (of ${items.length} total item(s)). Re-run with --yes to confirm.`
-    );
+  } catch (e: any) {
+    deps.error(`run failed: ${e.message ?? e}`);
     return 2;
   }
-
-  deps.mkdirp(responsesDir);
-  deps.mkdirp(BENCH_DIR);
-
-  for (const task of pending) {
-    const result = arm === "bare" ? await runBareArm(deps.llm, task) : await runPrinciplesArm(deps.llm, task, deps.runners);
-
-    deps.writeFile(`${responsesDir}/${task.sampleId}.md`, result.markdown);
-    deps.appendFile(
-      runLogPath(arm),
-      `${JSON.stringify({ sampleId: task.sampleId, wordCount: result.wordCount, unverified: result.unverified, at: deps.now() })}\n`
-    );
-    deps.log(
-      `[${arm}] ${task.sampleId} — ${result.wordCount} words, unverified: ${
-        result.unverified.length ? result.unverified.join(", ") : "none"
-      }`
-    );
-  }
-
-  return 0;
 }
 
 function cmdStatus(deps: PilotDeps): number {
-  if (!deps.exists(MANIFEST_PATH)) {
-    deps.error(`No manifest at ${MANIFEST_PATH} — run fetch first.`);
+  try {
+    if (!deps.exists(MANIFEST_PATH)) {
+      deps.error(`No manifest at ${MANIFEST_PATH} — run fetch first.`);
+      return 2;
+    }
+    const manifest = JSON.parse(deps.readFile(MANIFEST_PATH)) as PilotManifest;
+    for (const arm of ARMS) {
+      const dir = `${RESPONSES_DIR}/${arm}`;
+      const done = manifest.items.filter((it) => deps.exists(`${dir}/${it.sampleId}.md`)).length;
+      deps.log(`${arm}: ${done}/${manifest.count}`);
+    }
+    return 0;
+  } catch (e: any) {
+    deps.error(`status failed: ${e.message ?? e}`);
     return 2;
   }
-  const manifest = JSON.parse(deps.readFile(MANIFEST_PATH)) as PilotManifest;
-  for (const arm of ARMS) {
-    const dir = `${RESPONSES_DIR}/${arm}`;
-    const done = manifest.items.filter((it) => deps.exists(`${dir}/${it.sampleId}.md`)).length;
-    deps.log(`${arm}: ${done}/${manifest.count}`);
-  }
-  return 0;
 }
 
 export async function run(argv: string[], deps: PilotDeps): Promise<number> {
@@ -222,5 +254,7 @@ if (require.main === module) {
     confirmYes,
     now: () => new Date().toISOString(),
   };
-  run(argvForRun, deps).then((code) => process.exit(code));
+  run(argvForRun, deps)
+    .then((code) => process.exit(code))
+    .catch(() => process.exit(2));
 }
