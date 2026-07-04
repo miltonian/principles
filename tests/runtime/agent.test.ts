@@ -42,6 +42,20 @@ describe("runAgent", () => {
     expect(capture.req!.system).toContain("web search");
   });
 
+  it("coalesces missing notes to empty string and accepts result-only payloads (live: finalize failed fitting two report-sized strings)", async () => {
+    const capture: { req?: LlmRequest<unknown> } = {};
+    const resultOnlyLlm = (async (req: LlmRequest<unknown>) => {
+      capture.req = req;
+      return { result: "the analysis" };
+    }) as unknown as Llm;
+    const out = await runAgent(resultOnlyLlm, spec, "p", new Blackboard());
+    expect(out).toEqual({ result: "the analysis", notes: "" });
+    const schema = capture.req!.schema as { parse: (v: unknown) => unknown };
+    expect(() => schema.parse({ result: "r" })).not.toThrow();
+    expect(() => schema.parse({})).toThrow();
+    expect(capture.req!.system).toContain("Keep notes under 200 words");
+  });
+
   it("omits webTools and the web line for tool-less agents", async () => {
     const capture: { req?: LlmRequest<unknown> } = {};
     await runAgent(fakeLlm(capture), spec, "p", new Blackboard());

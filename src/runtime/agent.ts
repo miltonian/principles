@@ -3,8 +3,12 @@ import { Llm } from "../llm/gateway";
 import { AgentSpec } from "../shared/types";
 import { Blackboard } from "./blackboard";
 
+// notes is optional at the schema level: live runs on research-scale tasks showed
+// the SDK's structured-output finalize failing all 5 internal attempts when the
+// model couldn't fit two report-sized strings in one payload — it emitted exactly
+// one field per attempt. result is the deliverable; notes must never block it.
 const AgentOutputSchema = z.object({
-  notes: z.string(),
+  notes: z.string().optional(),
   result: z.string(),
 });
 
@@ -21,14 +25,14 @@ export async function runAgent(
   board: Blackboard,
   improvementNotes?: string
 ): Promise<AgentOutput> {
-  return llm({
+  const out = await llm({
     system: [
       `You are "${spec.name}", a specialized text-only agent.`,
       `Your subtask: ${spec.instructions}`,
       `Hard constraints (truths you serve): ${spec.servesTruths.join(", ")}`,
       `Produce:`,
       `- result: your deliverable. Expected shape: ${spec.outputHint}`,
-      `- notes: reasoning, caveats, and nuance that downstream agents need. Do not repeat the result here.`,
+      `- notes: reasoning, caveats, and nuance that downstream agents need. Do not repeat the result here. Keep notes under 200 words; if space is tight, result takes priority.`,
       ...(spec.webTools
         ? [`You may use web search and web fetch for this subtask. Cite the URLs you used in your notes.`]
         : []),
@@ -47,4 +51,5 @@ export async function runAgent(
     schemaName: "agent_output",
     ...(spec.webTools ? { webTools: true } : {}),
   });
+  return { result: out.result, notes: out.notes ?? "" };
 }
