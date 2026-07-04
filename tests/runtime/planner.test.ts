@@ -44,4 +44,40 @@ describe("plan", () => {
     const without = await plan(fakeLlm({ fits: true, reason: "r", selectedAgentIds: ["agent-s1"] }), ontology, "p");
     expect(without.deliverableGenre).toBeUndefined();
   });
+
+  it("includes genre adoption instruction in system prompt", async () => {
+    let capturedSystem: string | undefined;
+    const llm = (async (req: any) => {
+      capturedSystem = req.system;
+      return { fits: true, reason: "matches", selectedAgentIds: ["agent-s1"] };
+    }) as unknown as Llm;
+
+    await plan(llm, ontology, "prompt");
+    expect(capturedSystem).toContain("adopt that as the genre");
+  });
+
+  it("includes truths in prompt when ontology has truths", async () => {
+    let capturedPrompt: string | undefined;
+    const llm = (async (req: any) => {
+      capturedPrompt = req.prompt;
+      return { fits: true, reason: "matches", selectedAgentIds: ["agent-s1"] };
+    }) as unknown as Llm;
+
+    const ontologyWithTruths: Ontology = {
+      objective: "obj",
+      truths: [
+        { id: "t1", type: "constraint", statement: "Deliverable is a video tutorial", rationale: "User specified format" },
+        { id: "t2", type: "definition", statement: "Video tutorial: step-by-step visual guide", rationale: "Standard definition" },
+      ],
+      assumptions: [],
+      subtasks: [],
+      agents: ontology.agents,
+      outputRubric: [],
+    };
+
+    await plan(llm, ontologyWithTruths, "prompt");
+    expect(capturedPrompt).toContain("## Truths");
+    expect(capturedPrompt).toContain("- constraint Deliverable is a video tutorial");
+    expect(capturedPrompt).toContain("- definition Video tutorial: step-by-step visual guide");
+  });
 });

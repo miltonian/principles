@@ -30,11 +30,19 @@ export async function plan(llm: Llm, ontology: Ontology, userPrompt: string): Pr
       "fits=false when the prompt is outside the system's objective/domain — do not force it.",
       "Select only agents whose subtask contributes to answering THIS prompt.",
       "Name the deliverable genre the prompt implies (research report, design document, brief, outline...) and its audience.",
+      "If the truths name the deliverable kind or register, adopt that as the genre — do not re-guess.",
     ].join("\n"),
     prompt: [
       `## System objective`,
       ontology.objective,
       ``,
+      ...(ontology.truths && ontology.truths.length > 0
+        ? [
+            `## Truths`,
+            ...ontology.truths.map((t) => `- ${t.type} ${t.statement}`),
+            ``,
+          ]
+        : []),
       `## Available agents`,
       ...ontology.agents.map((a) => `- ${a.id}: ${a.name} — ${a.instructions}`),
       ``,
