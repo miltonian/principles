@@ -20,8 +20,8 @@
 | 6053d8 | 0.500 | **0.540** | +0.040 | 2,232 (1,769) |
 | 605469 | 0.415 | **0.439** | +0.024 | 2,965 (2,949) |
 | 9af315 | 0.818 | **0.833** | +0.015 | 11,480 (4,684) |
-| 6053ce | **0.670** | 0.651 | −0.019 | 4,946 (3,857) |
-| 605348 | **0.629** | 0.435 | −0.194 | **237** (2,349) |
+| 6053ce | **0.670** | 0.651 | −0.019 | 4,946 (2,468) |
+| 605348 | **0.629** | 0.435 | −0.194 | **237** (2,118) |
 | 60543d | **0.891** | 0.600 | −0.291 | 2,544 (1,697) |
 | 605440 | **0.698** | 0.326 | −0.372 | **1,020** (2,961) |
 | 6053ca | **0.847** | 0.458 | −0.389 | 1,326 (2,686) |
@@ -33,7 +33,7 @@ Context (published binary-mode baselines from the benchmark's paper — differen
 
 The five wins are moderate; three of the five losses are catastrophic, and each has a visible cause in the shipped artifacts:
 
-1. **Verdict bias** (`605440`, 0.326): asked for a research report, the compiled team produced a 1,020-word *adjudication* ("Verdict: FALSE — provably so"). The pipeline's evaluation heritage framed the goal as claim-judging; expert rubrics wanted comprehensive coverage. First line of [the response](responses/principles/6847465956a0f6376a605440.md) says it all.
+1. **Verdict bias** (`605440`, 0.326): asked for a research report, the compiled team produced a 1,020-word *adjudication* (verbatim first line: `# Verdict: The Proposition Is **False** — Provably So`). The pipeline's evaluation heritage framed the goal as claim-judging; expert rubrics wanted comprehensive coverage. First line of [the response](responses/principles/6847465956a0f6376a605440.md) says it all.
 2. **Fourth-wall leakage + honesty tax** (`6053ca`, 0.458): the synthesis opens with "I'm the synthesis agent; the blackboard already contains…" — internal role narration shipped in the deliverable — then leads with verification caveats (7 agents unverified) before content. Honesty flags are the right mechanism; putting them ahead of the deliverable is a rendering bug.
 3. **Synthesis collapse** (`605348`, 0.435): with 3 agents unverified, synthesis emitted a 237-word stub instead of a report.
 
@@ -50,7 +50,10 @@ The wins falsify "multi-agent is inherently worse here": +0.153 came with 5,109 
 ```bash
 yarn research-pilot fetch          # manifest (seeded)
 yarn research-pilot run --arm bare --yes && yarn research-pilot run --arm principles --yes
-# grading: clone scaleapi/researchrubrics, GEMINI_API_KEY in .env, see .bench-cache/grader/grade_arm.py
+# grading: clone scaleapi/researchrubrics, GEMINI_API_KEY in .env, run the committed driver: grade_arm.py
+# (note: this run's committed verdict files carry weight/score/confidence per rubric; the criterion-text and
+#  reasoning columns were nulled by a key-name mismatch, fixed in grade_arm.py for future runs — scores are
+#  fully recomputable from weight×score, which is how they were independently verified)
 ```
 
 Generated 2026-07-03/04. Model calls ran on subscription credentials; grading cost ≈ $9 of Gemini 2.5 Pro.
