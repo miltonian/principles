@@ -10,15 +10,22 @@ export interface GateResult {
 
 /**
  * Check for internal vocabulary that leaks implementation details.
- * Patterns: synthesis agent, agent-s\d+, blackboard, as the synthesis.
+ * Patterns target PROCESS-CONTEXT phrasings only: reports legitimately ABOUT
+ * multi-agent architectures may say "blackboard pattern" or "a synthesis
+ * agent aggregates outputs" — those must pass (review-flagged false-positive
+ * risk on the pilot's own AI/ML task domains). What must never pass is the
+ * run narrating ITSELF: "I'm the synthesis agent", "the blackboard already
+ * contains", references to our agent-s<N> ids.
  * Failure message quotes the matched text with ±40 char context.
  */
 export function roleLeakGate(text: string): GateResult {
   const patterns = [
-    /\bsynthesis agent\b/i,
+    /\bI'?m the synthesis\b/i,
+    /\bas the synthesis agent\b/i,
+    /\bmy (?:subtask|blackboard|fellow agents)\b/i,
     /\bagent-s\d+\b/,
-    /\bblackboard\b/i,
-    /\bas the synthesis\b/i,
+    /\b(?:the|our) blackboard (?:already\s+)?(?:contains|has|holds|shows)\b/i,
+    /\bon the blackboard\b/i,
   ];
 
   const failures: string[] = [];

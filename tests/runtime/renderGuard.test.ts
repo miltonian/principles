@@ -14,6 +14,14 @@ describe("roleLeakGate", () => {
   it("passes legitimate topical uses of 'agent'", () => {
     expect(roleLeakGate("AI agents adopting MCP grew rapidly; multi-agent systems benefit.").pass).toBe(true);
   });
+  it("passes reports ABOUT multi-agent architectures (review-flagged false-positive risk)", () => {
+    expect(roleLeakGate("The blackboard pattern is a classic architecture; a synthesis agent aggregates worker outputs.").pass).toBe(true);
+    expect(roleLeakGate("This design serves as the synthesis of both approaches.").pass).toBe(true);
+  });
+  it("still fails first-person process narration", () => {
+    expect(roleLeakGate("The blackboard already contains a full design.").pass).toBe(false);
+    expect(roleLeakGate("My fellow agents produced drafts.").pass).toBe(false);
+  });
 });
 
 describe("substanceGate", () => {
