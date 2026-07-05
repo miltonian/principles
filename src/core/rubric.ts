@@ -23,7 +23,7 @@ export function decompositionRubric(truths: Truth[]): Criterion[] {
 export function outputRubric(truths: Truth[]): Criterion[] {
   const generic: Criterion[] = [
     { id: "o-responsive", source: "generic", description: "The output directly addresses the user's prompt — not a generic essay near the topic." },
-    { id: "o-grounded", source: "generic", description: "The output does not fabricate facts; claims are grounded in the prompt, prior agent outputs, or clearly flagged as uncertain." },
+    { id: "o-grounded", source: "generic", description: "Claims are grounded via attribution to sources or prior agent material; nothing is fabricated — and specifics available in the material (names, figures, sources) are asserted with attribution rather than systematically omitted or hedged away." },
   ];
   const fromTruths: Criterion[] = truths
     .filter((t) => t.type === "constraint")

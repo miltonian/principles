@@ -123,7 +123,7 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
         schemaName: "synthesis",
       }),
     async (candidate) => {
-      const gates = runGates(candidate.answer, contract);
+      const gates = runGates(candidate.answer, contract, board.all());
       const critique = await judge(llm, {
         rubric: [...ontology.outputRubric, ...contractCriteria],
         candidate: candidate.answer,

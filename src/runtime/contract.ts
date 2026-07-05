@@ -73,6 +73,7 @@ export function renderContract(c: DeliverableContract): string {
     ...c.sections.map((s) => `- ${s.title} (~${s.budgetWords} words)`),
     `Target at least ${c.totalBudgetWords} words of substantive content overall.`,
     `Any verification caveats or uncertainty belong ONLY in a short closing "Verification notes" section — content first.`,
+    `Concrete names, figures, and cited sources from the material are load-bearing — keep them and attribute them. If sources conflict on a name or number, surface the conflict; never silently standardize.`,
     `Respond directly without preamble. Do not start with "Here is" or describe what you are about to do.`,
   ].join("\n");
 }

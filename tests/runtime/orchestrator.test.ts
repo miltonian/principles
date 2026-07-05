@@ -226,4 +226,41 @@ describe("runOntology", () => {
     expect(result.unverified).toContain("synthesis");
     expect(result.answer).toContain("I'm the synthesis agent"); // best candidate still shipped, flagged
   });
+
+  it("a board URL dropped from the synthesis answer trips the retention gate, quoted into the retry", async () => {
+    const prompts: string[] = [];
+    let synthesisCalls = 0;
+    const scriptedDroppedUrlLlm = (): Llm =>
+      (async <T>(req: LlmRequest<T>) => {
+        switch (req.schemaName) {
+          case "triage_plan":
+            return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"], deliverableGenre: "analysis", deliverableAudience: "reviewer" };
+          case "agent_output":
+            return { notes: "n", result: "Findings cite https://example.com/source-data directly." };
+          case "rubric_verdicts":
+            // Synthesis judge always passes — the gate alone must force iteration.
+            if (req.prompt.includes("c-contract-genre")) return synthesisPassVerdicts;
+            return { verdicts: [{ criterionId: "o-responsive", pass: true, evidence: "directly answers the question" }] };
+          case "synthesis":
+            synthesisCalls += 1;
+            prompts.push(req.prompt);
+            // First draft drops the board URL; the retry (fed the gate failure) restores it.
+            return {
+              answer:
+                synthesisCalls === 1
+                  ? LONG_SYNTHESIS_ANSWER
+                  : `${LONG_SYNTHESIS_ANSWER} Source: https://example.com/source-data.`,
+            };
+          default:
+            throw new Error(`unexpected schema ${req.schemaName}`);
+        }
+      }) as unknown as Llm;
+
+    const result = await runOntology(scriptedDroppedUrlLlm(), ontology, "Write me a report on X");
+    expect(prompts.length).toBeGreaterThanOrEqual(2); // initial + at least one retry
+    expect(prompts[1]).toContain("https://example.com/source-data"); // quoted specific fed back
+    expect(prompts[1]).toContain("agent-s1"); // attributed to the source agent
+    expect(result.unverified).not.toContain("synthesis"); // recovered on retry
+    expect(result.answer).toContain("https://example.com/source-data");
+  });
 });
