@@ -19,7 +19,9 @@ const DEFAULT_SYSTEM =
 // undefined, the stream ends with no result message at all, or the CLI
 // subprocess throws (observed: "Claude Code process exited with code 1").
 // Identical retried calls succeed, so we retry the whole query bounded.
-const MAX_ATTEMPTS = 3;
+// 3 proved too tight in live v3/v4 runs: the flake arrives in bursts (three
+// consecutive misses on one call observed twice, killing multi-hour runs).
+const MAX_ATTEMPTS = 5;
 
 // Maximum turns per query. Tools are disabled (tools: [], allowedTools: []),
 // so extra turns only continue the same text/structured-output generation

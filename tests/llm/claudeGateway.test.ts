@@ -198,7 +198,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(capture.calls).toBe(2);
   });
 
-  it("gives up after MAX_ATTEMPTS (3) when structured_output never arrives", async () => {
+  it("gives up after MAX_ATTEMPTS (5) when structured_output never arrives", async () => {
     const capture = { calls: 0 };
     const llm = makeClaudeAgentSdkLlm({
       queryFn: fakeQuerySequence([[{ type: "result", subtype: "success" }]], capture),
@@ -210,7 +210,7 @@ describe("makeClaudeAgentSdkLlm", () => {
       error = e as Error;
     }
     expect(error).toBeDefined();
-    expect(error!.message).toMatch(/after 3 attempts/);
+    expect(error!.message).toMatch(/after 5 attempts/);
     expect(error!.message).toMatch(/structured_output|structured output/i);
     expect(capture.calls).toBe(3);
   });
