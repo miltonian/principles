@@ -30,6 +30,7 @@ export async function generateOntology(llm: Llm, objective: string): Promise<Gen
       agents,
       outputRubric: outputRubric(f.truths),
       coverageMap: f.coverageMap,
+      survey: f.survey,
     },
     vet: f.vet,
     decomposition: f.decomposition,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Llm } from "../llm/gateway";
-import { Truth } from "../shared/types";
+import { Truth, Observation } from "../shared/types";
 
 const AttackSchema = z.object({
   verdict: z.enum(["survives", "demote", "reject"]),
@@ -20,8 +20,22 @@ export interface VetResult {
  * pushing back. Truths that survive are kept; unverifiable ones are demoted
  * to explicit assumptions; broken ones are rejected with the attack recorded.
  */
-export async function vetTruths(llm: Llm, objective: string, truths: Truth[]): Promise<VetResult> {
+export async function vetTruths(
+  llm: Llm,
+  objective: string,
+  truths: Truth[],
+  survey?: Observation[]
+): Promise<VetResult> {
   const result: VetResult = { kept: [], assumptions: [], rejected: [] };
+
+  const surveySection =
+    survey && survey.length > 0
+      ? [
+          ``,
+          `## External observations (attack the truths WITH these in hand — and attack the observations themselves where they are weak)`,
+          ...survey.map((o) => `${o.id} [${o.kind}] ${o.statement} (${o.source})`),
+        ]
+      : [];
 
   for (const truth of truths) {
     const attack = await llm({
@@ -37,6 +51,7 @@ export async function vetTruths(llm: Llm, objective: string, truths: Truth[]): P
       prompt: [
         `## Objective`,
         objective,
+        ...surveySection,
         ``,
         `## Claim under attack (type: ${truth.type})`,
         truth.statement,

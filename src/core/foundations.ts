@@ -1,7 +1,8 @@
 import { Llm } from "../llm/gateway";
-import { Truth, Subtask, CoverageMapRow, failures } from "../shared/types";
+import { Truth, Subtask, CoverageMapRow, Observation, failures } from "../shared/types";
 import { refine, RefineOutcome } from "../shared/refine";
 import { judge } from "../shared/judge";
+import { surveyLandscape } from "./survey";
 import { deriveTruths } from "./truths";
 import { vetTruths, VetResult } from "./skeptic";
 import { decompose, DecompositionResult } from "./decompose";
@@ -9,6 +10,7 @@ import { coverageCritique } from "./coverage";
 import { decompositionRubric } from "./rubric";
 
 export interface Foundations {
+  survey: Observation[];
   truths: Truth[];
   vet: VetResult;
   subtasks: Subtask[];
@@ -41,8 +43,9 @@ function renderCandidate(d: DecompositionResult): string {
  * compileRubric (which stops here).
  */
 export async function deriveFoundations(llm: Llm, objective: string): Promise<Foundations> {
-  const derived = await deriveTruths(llm, objective);
-  const vet = await vetTruths(llm, objective, derived);
+  const survey = await surveyLandscape(llm, objective);
+  const derived = await deriveTruths(llm, objective, survey);
+  const vet = await vetTruths(llm, objective, derived, survey);
   const truths = [...vet.kept, ...vet.assumptions];
   if (truths.length === 0) {
     throw new Error(
@@ -68,6 +71,7 @@ export async function deriveFoundations(llm: Llm, objective: string): Promise<Fo
   );
 
   return {
+    survey,
     truths,
     vet,
     subtasks: decomposition.result.subtasks,

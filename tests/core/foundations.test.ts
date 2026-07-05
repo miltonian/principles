@@ -6,8 +6,10 @@ import { Llm, LlmRequest } from "../../src/llm/gateway";
 const scriptedLlm = (): Llm =>
   (async <T>(req: LlmRequest<T>) => {
     switch (req.schemaName) {
+      case "landscape_survey":
+        return { observations: [] };
       case "typed_truths":
-        return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r" }] };
+        return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] }] };
       case "truth_attack":
         return { verdict: "survives", strongestAttack: "none", justification: "solid" };
       case "decomposition":
@@ -36,8 +38,10 @@ describe("deriveFoundations", () => {
     const capture: { prompt?: string } = {};
     const llm = (async <T>(req: LlmRequest<T>) => {
       switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
         case "typed_truths":
-          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r" }] };
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] }] };
         case "truth_attack":
           return { verdict: "survives", strongestAttack: "none", justification: "solid" };
         case "decomposition":
@@ -78,8 +82,10 @@ describe("deriveFoundations", () => {
     const capture: { prompt?: string } = {};
     const llm = (async <T>(req: LlmRequest<T>) => {
       switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
         case "typed_truths":
-          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r" }] };
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] }] };
         case "truth_attack":
           return { verdict: "survives", strongestAttack: "none", justification: "solid" };
         case "decomposition":
@@ -129,12 +135,63 @@ describe("deriveFoundations", () => {
 
   it("throws when every truth is rejected", async () => {
     const llm = (async <T>(req: LlmRequest<T>) => {
+      if (req.schemaName === "landscape_survey") return { observations: [] };
       if (req.schemaName === "typed_truths")
-        return { truths: [{ type: "fact", statement: "x", rationale: "r" }] };
+        return { truths: [{ type: "fact", statement: "x", rationale: "r", groundedIn: [] }] };
       if (req.schemaName === "truth_attack")
         return { verdict: "reject", strongestAttack: "broken", justification: "j" };
       throw new Error(`unexpected schema ${req.schemaName}`);
     }) as unknown as Llm;
     await expect(deriveFoundations(llm, "obj")).rejects.toThrow(/no truths survived/i);
+  });
+
+  it("returns the survey and threads it into truths and skeptic prompts", async () => {
+    const captured: { truthsPrompt?: string; attackPrompt?: string } = {};
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "landscape_survey":
+          return {
+            observations: [
+              { kind: "genre-convention", statement: "explainer videos open with a hook", source: "YouTube creator handbooks" },
+            ],
+          };
+        case "typed_truths":
+          captured.truthsPrompt = (req as unknown as { prompt: string }).prompt;
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: ["obs1"] }] };
+        case "truth_attack":
+          captured.attackPrompt = (req as unknown as { prompt: string }).prompt;
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
+        case "rubric_verdicts":
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    const f = await deriveFoundations(llm, "make a YouTube explainer");
+    expect(f.survey).toEqual([
+      { id: "obs1", kind: "genre-convention", statement: "explainer videos open with a hook", source: "YouTube creator handbooks" },
+    ]);
+    expect(f.truths[0].groundedIn).toEqual(["obs1"]);
+    expect(captured.truthsPrompt).toContain("## CANDIDATE OBSERVATIONS (evidence, not premises — reject freely, cite if used)");
+    expect(captured.truthsPrompt).toContain("obs1 [genre-convention] explainer videos open with a hook (YouTube creator handbooks)");
+    expect(captured.attackPrompt).toContain(
+      "## External observations (attack the truths WITH these in hand — and attack the observations themselves where they are weak)"
+    );
+    expect(captured.attackPrompt).toContain("obs1 [genre-convention] explainer videos open with a hook (YouTube creator handbooks)");
   });
 });

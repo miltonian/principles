@@ -185,11 +185,13 @@ describe("compileRubric", () => {
   it("runs foundations → draft → guidance → meta-check and assembles provenance", async () => {
     const llm = (async (req: any) => {
       switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
         case "typed_truths":
           return {
             truths: [
-              { type: "constraint", statement: "must cite sources", rationale: "r" },
-              { type: "fact", statement: "unverifiable-ish claim", rationale: "r" },
+              { type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] },
+              { type: "fact", statement: "unverifiable-ish claim", rationale: "r", groundedIn: [] },
             ],
           };
         case "truth_attack":
