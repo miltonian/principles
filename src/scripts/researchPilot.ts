@@ -5,7 +5,7 @@ import fs from "fs";
 import { Llm } from "../llm/gateway";
 import { makeClaudeAgentSdkLlm } from "../llm/claudeGateway";
 import { parseRowsPages, sampleTasks, buildPilotManifest, ResearchTask, PilotManifest } from "../bench/researchLoader";
-import { runBareArm, runPrinciplesArm, PrinciplesRunners } from "../bench/researchArms";
+import { runBareArm, runPrinciplesArm, realRunners, PrinciplesRunners } from "../bench/researchArms";
 
 export interface PilotDeps {
   llm: Llm;
@@ -26,6 +26,7 @@ export interface PilotDeps {
 const SEED = 20260703;
 const SAMPLE_COUNT = 10;
 const CACHE_DIR = ".bench-cache/researchrubrics";
+const ONTOLOGY_CACHE_DIR = ".bench-cache/ontologies";
 const BENCH_DIR = "benchmarks/research-pilot";
 const MANIFEST_PATH = `${BENCH_DIR}/manifest.json`;
 const RESPONSES_DIR = `${BENCH_DIR}/responses`;
@@ -99,6 +100,34 @@ async function cmdFetch(deps: PilotDeps): Promise<number> {
     deps.error(`fetch failed: ${e.message ?? e}`);
     return 2;
   }
+}
+
+/**
+ * Wraps a PrinciplesRunners so that, per task, a previously-generated ontology
+ * is reused across resumed runs instead of re-generated: before generating, if
+ * `.bench-cache/ontologies/<sampleId>.json` exists and parses, it is returned
+ * as-is (base.generate is not called). Otherwise base.generate runs and its
+ * result is persisted. A malformed cache file is treated as absent (regenerate
+ * and overwrite) rather than crashing the run.
+ */
+function withOntologyPersistence(base: PrinciplesRunners, deps: PilotDeps, sampleId: string): PrinciplesRunners {
+  const cachePath = `${ONTOLOGY_CACHE_DIR}/${sampleId}.json`;
+  return {
+    generate: async (llm, objective) => {
+      if (deps.exists(cachePath)) {
+        try {
+          return { ontology: JSON.parse(deps.readFile(cachePath)) };
+        } catch {
+          // malformed persisted ontology — fall through and regenerate below
+        }
+      }
+      const result = await base.generate(llm, objective);
+      deps.mkdirp(ONTOLOGY_CACHE_DIR);
+      deps.writeFile(cachePath, JSON.stringify(result.ontology, null, 2));
+      return result;
+    },
+    run: base.run,
+  };
 }
 
 const MAX_CONCURRENCY = 4;
@@ -225,7 +254,14 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
     deps.mkdirp(BENCH_DIR);
 
     const runOne = async (task: ResearchTask): Promise<void> => {
-      const result = arm === "bare" ? await runBareArm(deps.llm, task) : await runPrinciplesArm(deps.llm, task, deps.runners);
+      const result =
+        arm === "bare"
+          ? await runBareArm(deps.llm, task)
+          : await runPrinciplesArm(
+              deps.llm,
+              task,
+              withOntologyPersistence(deps.runners ?? realRunners(), deps, task.sampleId)
+            );
 
       deps.writeFile(`${responsesDir}/${task.sampleId}.md`, result.markdown);
       deps.appendFile(

@@ -10,11 +10,13 @@ import { Blackboard } from "./blackboard";
 const AgentOutputSchema = z.object({
   notes: z.string().optional(),
   result: z.string(),
+  outOfFrame: z.string().optional(),
 });
 
 export interface AgentOutput {
   notes: string;
   result: string;
+  outOfFrame?: string;
 }
 
 /** One agent = one LLM call over the spec, the user prompt, and the full blackboard. */
@@ -33,6 +35,7 @@ export async function runAgent(
       `Produce:`,
       `- result: your deliverable. Expected shape: ${spec.outputHint}`,
       `- notes: reasoning, caveats, and nuance that downstream agents need. Do not repeat the result here. Keep notes under 200 words; if space is tight, result takes priority.`,
+      `If you discover something important that your subtask's frame cannot hold, put one short note in outOfFrame — it will be surfaced, not lost.`,
       ...(spec.webTools
         ? [`You may use web search and web fetch for this subtask. Cite the URLs you used in your notes.`]
         : []),
@@ -51,5 +54,5 @@ export async function runAgent(
     schemaName: "agent_output",
     ...(spec.webTools ? { webTools: true } : {}),
   });
-  return { result: out.result, notes: out.notes ?? "" };
+  return { result: out.result, notes: out.notes ?? "", outOfFrame: out.outOfFrame };
 }

@@ -143,6 +143,7 @@ describe("runOntology", () => {
     expect(result.planned).toEqual(["agent-s1", "agent-s2"]);
     expect(result.board).toHaveLength(2);
     expect(result.unverified).toEqual([]);
+    expect(result.discoveries).toEqual([]);
     expect(log[0]).toBe("triage_plan");
     expect(log).toContain("synthesis");
     // Synthesis is now judged too: the last call is the synthesis-level rubric check.
@@ -160,6 +161,7 @@ describe("runOntology", () => {
     expect(result.escaped).toBe(true);
     expect(result.answer).toBe("direct answer");
     expect(result.board).toEqual([]);
+    expect(result.discoveries).toEqual([]);
   });
 
   it("flags agents that never converge as unverified, but still keeps and synthesizes their output", async () => {
@@ -197,6 +199,37 @@ describe("runOntology", () => {
     expect(sp.indexOf("<instructions>")).toBeGreaterThan(sp.indexOf("</documents>"));
     expect(sp).toContain("The answer IS the finished document");
     expect(result.unverified).not.toContain("synthesis");
+    expect(result.discoveries).toEqual([]);
+    expect(sp).not.toContain("Out-of-frame discoveries");
+  });
+
+  it("collects out-of-frame discoveries into RunResult and instructs synthesis to confine them to Verification notes", async () => {
+    const synthesisPrompts: string[] = [];
+    const scriptedDiscoveryLlm = (): Llm =>
+      (async <T>(req: LlmRequest<T>) => {
+        switch (req.schemaName) {
+          case "triage_plan":
+            return { fits: true, reason: "on-domain", selectedAgentIds: ["agent-s1", "agent-s2"], deliverableGenre: "analysis", deliverableAudience: "reviewer" };
+          case "agent_output":
+            if (req.system!.includes('"Analyzer"'))
+              return { notes: "n", result: "agent deliverable", outOfFrame: "licensing terms fall outside this subtask" };
+            return { notes: "n", result: "agent deliverable" };
+          case "rubric_verdicts":
+            if (req.prompt.includes("c-contract-genre")) return synthesisPassVerdicts;
+            return { verdicts: [{ criterionId: "o-responsive", pass: true, evidence: "directly answers the question" }] };
+          case "synthesis":
+            synthesisPrompts.push(req.prompt);
+            return { answer: LONG_SYNTHESIS_ANSWER };
+          default:
+            throw new Error(`unexpected schema ${req.schemaName}`);
+        }
+      }) as unknown as Llm;
+
+    const result = await runOntology(scriptedDiscoveryLlm(), ontology, "is this claim credible?");
+    expect(result.discoveries).toEqual([{ agentId: "agent-s1", note: "licensing terms fall outside this subtask" }]);
+    expect(synthesisPrompts[0]).toContain("Out-of-frame discoveries were flagged");
+    expect(synthesisPrompts[0]).toContain("licensing terms fall outside this subtask");
+    expect(synthesisPrompts[0]).toContain('Verification notes');
   });
 
   it("gate failures are quoted into the synthesis retry and non-convergence flags 'synthesis'", async () => {

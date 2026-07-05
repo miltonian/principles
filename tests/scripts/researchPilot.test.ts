@@ -194,6 +194,81 @@ describe("research-pilot run", () => {
     expect(line).toMatchObject({ sampleId: "x", unverified: ["agent-s2"], at: FIXED_NOW });
   });
 
+  describe("principles arm ontology persistence", () => {
+    it("persists the freshly generated ontology to .bench-cache/ontologies/<sampleId>.json", async () => {
+      const calls: string[] = [];
+      const runners: PrinciplesRunners = {
+        generate: async (_llm, objective) => {
+          calls.push(`gen:${objective}`);
+          return { ontology: { objective, marker: "fresh" } };
+        },
+        run: async (_llm, _ontology, prompt) => {
+          calls.push(`run:${prompt}`);
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls).toEqual(["gen:Prompt X", "run:Prompt X"]);
+      const cached = JSON.parse(fakeFs.files.get(".bench-cache/ontologies/x.json")!);
+      expect(cached).toEqual({ objective: "Prompt X", marker: "fresh" });
+    });
+
+    it("resuming with a persisted ontology skips generate and passes the persisted object to run", async () => {
+      const calls: Array<{ fn: string; arg?: unknown }> = [];
+      const runners: PrinciplesRunners = {
+        generate: async () => {
+          calls.push({ fn: "generate" });
+          return { ontology: { should: "not-happen" } };
+        },
+        run: async (_llm, ontology) => {
+          calls.push({ fn: "run", arg: ontology });
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+      const persisted = { objective: "Prompt X", marker: "persisted" };
+      fakeFs.mkdirp(".bench-cache/ontologies");
+      fakeFs.files.set(".bench-cache/ontologies/x.json", JSON.stringify(persisted));
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls.filter((c) => c.fn === "generate")).toHaveLength(0);
+      expect(calls).toContainEqual({ fn: "run", arg: persisted });
+    });
+
+    it("a malformed persisted ontology file is regenerated (no crash) and the cache is overwritten", async () => {
+      const calls: string[] = [];
+      const runners: PrinciplesRunners = {
+        generate: async (_llm, objective) => {
+          calls.push("generate");
+          return { ontology: { objective, marker: "regenerated" } };
+        },
+        run: async () => {
+          calls.push("run");
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+      fakeFs.mkdirp(".bench-cache/ontologies");
+      fakeFs.files.set(".bench-cache/ontologies/x.json", "{not valid json");
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls).toEqual(["generate", "run"]);
+      const cached = JSON.parse(fakeFs.files.get(".bench-cache/ontologies/x.json")!);
+      expect(cached).toEqual({ objective: "Prompt X", marker: "regenerated" });
+    });
+  });
+
   it("run without a manifest errors 2 telling the user to fetch first", async () => {
     const { deps, err } = makeDeps({ confirmYes: true });
     const code = await run(["run", "--arm", "bare"], deps);

@@ -22,6 +22,10 @@ export interface RunResult {
   // the literal "synthesis" when the final deliverable itself never converged
   // (its best candidate still ships — see the synthesis refine loop below).
   unverified: string[];
+  // Out-of-frame notes agents flagged via AgentOutput.outOfFrame — things their
+  // subtask's frame couldn't hold. Surfaced to synthesis (confined to the closing
+  // "Verification notes" section) rather than silently dropped. Additive; [] default.
+  discoveries: { agentId: string; note: string }[];
 }
 
 export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: string): Promise<RunResult> {
@@ -35,7 +39,7 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
       schema: AnswerSchema,
       schemaName: "direct_answer",
     });
-    return { answer: direct.answer, planned: [], escaped: true, board: [], unverified: [] };
+    return { answer: direct.answer, planned: [], escaped: true, board: [], unverified: [], discoveries: [] };
   }
 
   const board = new Blackboard();
@@ -43,6 +47,7 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
   if (!levels) throw new Error("Circular dependency among planned agents.");
   const specById = new Map(triage.agents.map((a) => [a.id, a]));
   const unverified: string[] = [];
+  const discoveries: { agentId: string; note: string }[] = [];
 
   for (const level of levels) {
     const outputs = await Promise.all(
@@ -77,6 +82,7 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
     for (const { spec, output, converged } of outputs) {
       board.add({ agentId: spec.id, subtask: spec.instructions, notes: output.notes, result: output.result });
       if (!converged) unverified.push(spec.id);
+      if (output.outOfFrame) discoveries.push({ agentId: spec.id, note: output.outOfFrame });
     }
   }
 
@@ -108,6 +114,12 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
             ? [
                 ``,
                 `Contributions from ${unverified.join(", ")} did not pass verification; reflect that ONLY inside the closing "Verification notes" section.`,
+              ]
+            : []),
+          ...(discoveries.length > 0
+            ? [
+                ``,
+                `Out-of-frame discoveries were flagged: ${discoveries.map((d) => d.note).join("; ")}. Address them ONLY in the closing "Verification notes" section.`,
               ]
             : []),
           ...(feedback
@@ -153,5 +165,6 @@ export async function runOntology(llm: Llm, ontology: Ontology, userPrompt: stri
     escaped: false,
     board: board.all(),
     unverified,
+    discoveries,
   };
 }
