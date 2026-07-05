@@ -157,31 +157,29 @@ function parseRunFlags(rest: string[]): { arm: Arm; limit?: number; concurrency?
 
 /**
  * Runs `items` through `worker`, at most `concurrency` in flight at once.
- * If any item's worker call rejects: in-flight items are allowed to finish, no
- * new items are launched, and the first failure is reported back to the caller.
+ * Per-item failures are recorded and SKIPPED — remaining items still run.
+ * Live evidence forced this: the SDK's structured-output flake arrives in
+ * bursts that beat any per-call retry budget; fail-fast turned one bad item
+ * into a dead multi-hour run, three times. Failed items stay resumable (no
+ * response file is written), and every failure is reported at the end.
  */
 async function runWorkerPool<T extends { sampleId: string }>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<void>
-): Promise<{ failedSampleId?: string; error?: unknown }> {
+): Promise<{ failures: { sampleId: string; error: unknown }[] }> {
   let nextIndex = 0;
-  let stopLaunching = false;
-  let failedSampleId: string | undefined;
-  let error: unknown;
+  const failures: { sampleId: string; error: unknown }[] = [];
 
   async function lane(): Promise<void> {
-    while (!stopLaunching) {
+    for (;;) {
       const i = nextIndex++;
       if (i >= items.length) return;
       const item = items[i];
       try {
         await worker(item);
       } catch (e) {
-        stopLaunching = true;
-        failedSampleId = item.sampleId;
-        error = e;
-        return;
+        failures.push({ sampleId: item.sampleId, error: e });
       }
     }
   }
@@ -189,7 +187,7 @@ async function runWorkerPool<T extends { sampleId: string }>(
   const laneCount = Math.min(concurrency, items.length);
   await Promise.all(Array.from({ length: laneCount }, () => lane()));
 
-  return { failedSampleId, error };
+  return { failures };
 }
 
 async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
@@ -275,12 +273,13 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
       );
     };
 
-    const { failedSampleId, error } = await runWorkerPool(pending, concurrency, runOne);
-    if (failedSampleId !== undefined) {
-      const message = error instanceof Error ? error.message : String(error);
-      deps.error(
-        `run failed for arm "${arm}": item "${failedSampleId}" threw (${message}); completed items were persisted and are resumable, remaining items were not started.`
-      );
+    const { failures } = await runWorkerPool(pending, concurrency, runOne);
+    if (failures.length > 0) {
+      for (const f of failures) {
+        const message = f.error instanceof Error ? f.error.message : String(f.error);
+        deps.error(`run failed for arm "${arm}": item "${f.sampleId}" threw (${message}); it remains resumable.`);
+      }
+      deps.error(`${failures.length} item(s) failed; ${pending.length - failures.length} completed. Re-run to retry the failures.`);
       return 2;
     }
 

@@ -507,3 +507,33 @@ describe("research-pilot unknown subcommand", () => {
     expect(code).toBe(2);
   });
 });
+
+describe("worker pool — skip-and-continue on item failure (live: SDK flake bursts killed multi-hour runs)", () => {
+  it("a failing item is recorded but later items still run; exit 2 names the failure", async () => {
+    const { deps, err, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [
+      { sampleId: "a", prompt: "Prompt A" },
+      { sampleId: "b", prompt: "Prompt B" },
+      { sampleId: "c", prompt: "Prompt C" },
+    ]);
+    const ran: string[] = [];
+    deps.runners = {
+      generate: async () => ({ ontology: { o: 1 } }),
+      run: async (_l: unknown, _o: unknown, prompt: string) => {
+        const id = prompt.includes("Prompt A") ? "a" : prompt.includes("Prompt B") ? "b" : "c";
+        ran.push(id);
+        if (id === "b") throw new Error("SDK finalize flake");
+        return { answer: "# Report body", unverified: [], discoveries: [] };
+      },
+    } as never;
+
+    const code = await run(["run", "--arm", "principles"], deps);
+
+    expect(code).toBe(2);                                   // failure still surfaces
+    expect(ran.sort()).toEqual(["a", "b", "c"]);            // c RAN despite b failing
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/a.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/c.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/b.md")).toBe(false);
+    expect(err.join(" ")).toContain('"b"');
+  });
+});
