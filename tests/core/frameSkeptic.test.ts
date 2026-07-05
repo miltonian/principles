@@ -68,6 +68,7 @@ describe("challengeFrame — survey-attack license (bias safeguard 3)", () => {
     await challengeFrame(llm, "obj", [], "frame");
     expect(captured).toContain("The survey is evidence, not authority");
     expect(captured).toContain("challenge that too");
-    expect(captured).toContain("not a");
+    expect(captured).toContain("Convention is evidence of reader expectations");
+    expect(captured).toContain("conforms to convention when");
   });
 });

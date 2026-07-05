@@ -48,5 +48,6 @@ describe("renderContract", () => {
     expect(text).toContain("Verification notes");
     expect(text).toContain("without preamble");
     expect(text).not.toMatch(/blackboard/i);
+    expect(text).toContain("Concrete names, figures, and cited sources from the material are load-bearing");
   });
 });

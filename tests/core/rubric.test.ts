@@ -36,3 +36,11 @@ describe("rubric builders", () => {
     expect(dBreadth.description.toLowerCase()).toContain("narrow");
   });
 });
+
+describe("o-grounded wording (v4: attribution, not omission)", () => {
+  it("pins the reworded criterion", async () => {
+    const { outputRubric } = await import("../../src/core/rubric");
+    const og = outputRubric([]).find((c) => c.id === "o-grounded")!;
+    expect(og.description).toContain("asserted with attribution rather than systematically omitted or hedged away");
+  });
+});
