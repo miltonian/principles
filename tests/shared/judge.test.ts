@@ -51,3 +51,16 @@ describe("judge", () => {
     expect(critique.verdicts.map((v) => v.criterionId).sort()).toEqual(["c1", "c2"]);
   });
 });
+
+describe("judge — verdict payload bounds (live: 55k-char judging payloads broke the SDK finalize 5x)", () => {
+  it("instructs concise evidence so N-criteria verdict payloads stay finalizable", async () => {
+    let system = "";
+    const llm = (async (req: { system?: string }) => {
+      system = req.system ?? "";
+      return { verdicts: [] };
+    }) as unknown as Llm;
+    await judge(llm, { rubric: [], candidate: "c", context: "x" });
+    expect(system).toContain("under 60 words");
+    expect(system).toContain("Short quotes, not passages");
+  });
+});

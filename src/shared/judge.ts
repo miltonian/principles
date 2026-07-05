@@ -32,6 +32,11 @@ export async function judge(
       "Evaluate every criterion independently, one at a time.",
       "For each verdict, `evidence` must quote or precisely reference the part of the candidate",
       "that justifies the verdict. Unsupported praise is worthless.",
+      // Live evidence (v4 run): long-document judging produced verdict payloads the
+      // SDK's structured-output finalize could not complete — 5 consecutive failures
+      // on one call. Evidence must be POINTED, not copied.
+      "Keep each evidence entry under 60 words. Short quotes, not passages — point at",
+      "the content precisely rather than reproducing it.",
     ].join("\n"),
     prompt: [
       `## Context`,
