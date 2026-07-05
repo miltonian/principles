@@ -56,3 +56,18 @@ describe("challengeFrame", () => {
     expect(captured.req!.prompt).toContain("(no survey observations)");
   });
 });
+
+describe("challengeFrame — survey-attack license (bias safeguard 3)", () => {
+  it("explicitly licenses attacking the survey's framing and denies convention authority", async () => {
+    let captured = "";
+    const llm = (async (req: { system?: string }) => {
+      captured = req.system ?? "";
+      return { challenges: [] };
+    }) as never;
+    const { challengeFrame } = await import("../../src/core/frameSkeptic");
+    await challengeFrame(llm, "obj", [], "frame");
+    expect(captured).toContain("The survey is evidence, not authority");
+    expect(captured).toContain("challenge that too");
+    expect(captured).toContain("not a");
+  });
+});
