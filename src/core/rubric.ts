@@ -7,7 +7,7 @@ export function decompositionRubric(truths: Truth[]): Criterion[] {
     { id: "d-feasible", source: "generic", description: "Each subtask is achievable by a text-only LLM: analyzing, summarizing, drafting, reasoning. No physical actions, no external systems." },
     { id: "d-complete", source: "generic", description: "The subtasks jointly achieve the full objective; nothing the objective requires is missing." },
     { id: "d-web", source: "generic", description: "Web access (needsWeb) is requested only where the subtask genuinely requires external material, and each request's justification is concrete — not speculative convenience." },
-    { id: "d-breadth", source: "generic", description: "The coverage map genuinely spans what an expert treatment would include; exclusions are reasoned, not convenient; the subtasks do not silently narrow the objective." },
+    { id: "d-breadth", source: "generic", description: "The coverage map genuinely spans what an expert treatment would include; exclusions are reasoned, not convenient; the subtasks do not silently narrow the objective; frame challenges raised by the external skeptic are adopted or explicitly excluded with reasons — never ignored." },
   ];
   const fromTruths: Criterion[] = truths
     .filter((t) => t.type === "constraint")

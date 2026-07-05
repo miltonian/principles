@@ -28,6 +28,8 @@ const scriptedLlm = (): Llm =>
             { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
           ],
         };
+      case "frame_challenges":
+        return { challenges: [] };
       default:
         throw new Error(`unexpected schema ${req.schemaName}`);
     }
@@ -69,6 +71,8 @@ describe("deriveFoundations", () => {
               { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
             ],
           };
+        case "frame_challenges":
+          return { challenges: [] };
         default:
           throw new Error(`unexpected schema ${req.schemaName}`);
       }
@@ -108,6 +112,8 @@ describe("deriveFoundations", () => {
               { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
             ],
           };
+        case "frame_challenges":
+          return { challenges: [] };
         default:
           throw new Error(`unexpected schema ${req.schemaName}`);
       }
@@ -177,6 +183,8 @@ describe("deriveFoundations", () => {
               { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
             ],
           };
+        case "frame_challenges":
+          return { challenges: [] };
         default:
           throw new Error(`unexpected schema ${req.schemaName}`);
       }
@@ -193,5 +201,149 @@ describe("deriveFoundations", () => {
       "## External observations (attack the truths WITH these in hand — and attack the observations themselves where they are weak)"
     );
     expect(captured.attackPrompt).toContain("obs1 [genre-convention] explainer videos open with a hook (YouTube creator handbooks)");
+  });
+
+  it("never leaks truths into the frame_challenges prompt (bait-truth absence)", async () => {
+    const captured: { framePrompt?: string } = {};
+    const baitStatement = "must never mention the secret sauce recipe XYZZY123";
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
+        case "typed_truths":
+          return { truths: [{ type: "constraint", statement: baitStatement, rationale: "r", groundedIn: [] }] };
+        case "truth_attack":
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
+        case "rubric_verdicts":
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        case "frame_challenges":
+          captured.framePrompt = (req as unknown as { prompt: string }).prompt;
+          return { challenges: [] };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    await deriveFoundations(llm, "evaluate study credibility");
+    expect(captured.framePrompt).toBeDefined();
+    expect(captured.framePrompt).not.toContain(baitStatement);
+  });
+
+  it("zero challenges is a pass-through: no extra decomposition or judge call", async () => {
+    let decompositionCalls = 0;
+    let judgeCalls = 0;
+    let frameCalls = 0;
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
+        case "typed_truths":
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] }] };
+        case "truth_attack":
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          decompositionCalls++;
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
+        case "rubric_verdicts":
+          judgeCalls++;
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        case "frame_challenges":
+          frameCalls++;
+          return { challenges: [] };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    const f = await deriveFoundations(llm, "evaluate study credibility");
+    expect(f.decomposition.status).toBe("converged");
+    expect(decompositionCalls).toBe(1);
+    expect(judgeCalls).toBe(1);
+    expect(frameCalls).toBe(1);
+  });
+
+  it("with challenges: runs exactly one revision quoting the challenge text, and the judge candidate lists the challenges", async () => {
+    let decompositionCalls = 0;
+    let judgeCalls = 0;
+    const capturedDecompositionPrompts: string[] = [];
+    const capturedJudgePrompts: string[] = [];
+    const challengeText = "no subtask covers the counterargument the genre demands";
+
+    const llm = (async <T>(req: LlmRequest<T>) => {
+      switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
+        case "typed_truths":
+          return { truths: [{ type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] }] };
+        case "truth_attack":
+          return { verdict: "survives", strongestAttack: "none", justification: "solid" };
+        case "decomposition":
+          decompositionCalls++;
+          capturedDecompositionPrompts.push((req as unknown as { prompt: string }).prompt);
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
+        case "rubric_verdicts":
+          judgeCalls++;
+          capturedJudgePrompts.push((req as unknown as { prompt: string }).prompt);
+          return {
+            verdicts: [
+              { criterionId: "d-minimal", pass: true, evidence: "single atomic analysis action" },
+              { criterionId: "d-feasible", pass: true, evidence: "pure text analysis, no externals" },
+              { criterionId: "d-complete", pass: true, evidence: "covers the whole objective" },
+              { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+              { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
+              { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
+            ],
+          };
+        case "frame_challenges":
+          return { challenges: [{ kind: "missing-axis", challenge: challengeText }] };
+        default:
+          throw new Error(`unexpected schema ${req.schemaName}`);
+      }
+    }) as unknown as Llm;
+
+    const f = await deriveFoundations(llm, "evaluate study credibility");
+
+    expect(decompositionCalls).toBe(2); // initial + exactly one frame revision
+    expect(judgeCalls).toBe(2); // initial + re-judge after revision
+
+    // Revision prompt (2nd decomposition call) quotes the challenge, tagged with its frame-fcN criterion id.
+    expect(capturedDecompositionPrompts[1]).toContain(challengeText);
+    expect(capturedDecompositionPrompts[1]).toContain("frame-fc1");
+
+    // Judge candidate for the revised decomposition lists the challenges (blind-judge lesson).
+    expect(capturedJudgePrompts[1]).toContain("Frame challenges raised (each must be adopted or excluded-with-reason):");
+    expect(capturedJudgePrompts[1]).toContain(challengeText);
+
+    expect(f.decomposition.status).toBe("converged");
+    expect(f.decomposition.iterations).toBe(2);
   });
 });

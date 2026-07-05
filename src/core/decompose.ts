@@ -36,7 +36,7 @@ function mapHandledBy(raw: string, subtaskCount: number): string {
   return Number.isInteger(n) && n >= 1 && n <= subtaskCount ? `s${n}` : `invalid:${trimmed}`;
 }
 
-const renderCoverageRow = (r: CoverageMapRow): string =>
+export const renderCoverageRow = (r: CoverageMapRow): string =>
   `- ${r.dimension}: ${r.handledBy ? `handled by ${r.handledBy}` : `excluded — ${r.exclusionReason || "(no reason given)"}`}`;
 
 /**

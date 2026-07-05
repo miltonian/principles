@@ -31,6 +31,8 @@ const scriptedLlm = (): Llm =>
             { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
           ],
         };
+      case "frame_challenges":
+        return { challenges: [] };
       case "agent_spec":
         return { name: "Source Analyzer", instructions: "analyze all sources", outputHint: "structured analysis" };
       default:
@@ -80,6 +82,8 @@ describe("generateOntology", () => {
               { criterionId: "d-t1", pass: true, evidence: "citation constraint carried into s1" },
             ],
           };
+        case "frame_challenges":
+          return { challenges: [] };
         case "agent_spec":
           return { name: "Source Analyzer", instructions: "analyze all sources", outputHint: "structured analysis" };
         default:

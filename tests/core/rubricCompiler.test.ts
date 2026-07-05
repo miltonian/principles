@@ -222,6 +222,8 @@ describe("compileRubric", () => {
               ] };
         case "rubric_guidance":
           return { guidance: [{ criterionId: "c-t1", evidenceGuidance: "quote the citation" }] };
+        case "frame_challenges":
+          return { challenges: [] };
         default:
           throw new Error(`unexpected schema ${req.schemaName}`);
       }
