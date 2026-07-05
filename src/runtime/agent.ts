@@ -7,10 +7,13 @@ import { Blackboard } from "./blackboard";
 // the SDK's structured-output finalize failing all 5 internal attempts when the
 // model couldn't fit two report-sized strings in one payload — it emitted exactly
 // one field per attempt. result is the deliverable; notes must never block it.
+// nullish (null OR absent): live v4 smoke showed the SDK emitting explicit
+// null for fields the model skips — .optional() alone rejects null and the
+// zod re-validation in the gateway kills the whole agent call.
 const AgentOutputSchema = z.object({
-  notes: z.string().optional(),
+  notes: z.string().nullish(),
   result: z.string(),
-  outOfFrame: z.string().optional(),
+  outOfFrame: z.string().nullish(),
 });
 
 export interface AgentOutput {
@@ -54,5 +57,5 @@ export async function runAgent(
     schemaName: "agent_output",
     ...(spec.webTools ? { webTools: true } : {}),
   });
-  return { result: out.result, notes: out.notes ?? "", outOfFrame: out.outOfFrame };
+  return { result: out.result, notes: out.notes ?? "", outOfFrame: out.outOfFrame ?? undefined };
 }

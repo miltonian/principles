@@ -73,6 +73,17 @@ describe("runAgent", () => {
     expect(out.outOfFrame).toBe("found a licensing conflict this subtask's frame can't address");
   });
 
+  it("tolerates explicit null for notes/outOfFrame (live: SDK models emit null, not absence)", async () => {
+    const nullLlm = (async () => ({ notes: null, result: "r", outOfFrame: null })) as unknown as Llm;
+    const out = await runAgent(nullLlm, spec, "p", new Blackboard());
+    expect(out).toEqual({ result: "r", notes: "", outOfFrame: undefined });
+    // and the schema itself must accept nulls (the gateway zod-parses for real)
+    const capture: { req?: LlmRequest<unknown> } = {};
+    await runAgent(fakeLlm(capture), spec, "p", new Blackboard());
+    const schema = capture.req!.schema as { parse: (v: unknown) => unknown };
+    expect(() => schema.parse({ result: "r", notes: null, outOfFrame: null })).not.toThrow();
+  });
+
   it("coalesces an absent outOfFrame to undefined rather than fabricating one", async () => {
     const capture: { req?: LlmRequest<unknown> } = {};
     const out = await runAgent(fakeLlm(capture), spec, "p", new Blackboard());
