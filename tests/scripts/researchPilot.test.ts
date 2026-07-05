@@ -434,7 +434,7 @@ describe("research-pilot run", () => {
       expect(out.some((l) => l.includes("10") && l.includes("4"))).toBe(true);
     });
 
-    it("stops launching new items after one item's arm throws mid-pool, exits 2 naming it, and persists completed items (no new launches after failure)", async () => {
+    it("skips a failing item, still runs the rest, exits 2 naming the failure (skip-and-continue; supersedes fail-fast)", async () => {
       const callOrder: string[] = [];
       let releaseA: () => void = () => {};
       const llm: Llm = (async (req: any) => {
@@ -468,12 +468,14 @@ describe("research-pilot run", () => {
 
       expect(code).toBe(2);
       expect(err.join("\n")).toContain("b");
+      // Skip-and-continue semantics (supersedes fail-fast): the failing item is
+      // reported and left resumable; every OTHER item still completes.
       expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/a.md")).toBe(true);
       expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/b.md")).toBe(false);
-      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/c.md")).toBe(false);
-      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/d.md")).toBe(false);
-      expect(callOrder.some((p) => p.startsWith("Prompt C"))).toBe(false);
-      expect(callOrder.some((p) => p.startsWith("Prompt D"))).toBe(false);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/c.md")).toBe(true);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/d.md")).toBe(true);
+      expect(callOrder.some((p) => p.startsWith("Prompt C"))).toBe(true);
+      expect(callOrder.some((p) => p.startsWith("Prompt D"))).toBe(true);
     });
   });
 
