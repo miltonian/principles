@@ -212,7 +212,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(error).toBeDefined();
     expect(error!.message).toMatch(/after 5 attempts/);
     expect(error!.message).toMatch(/structured_output|structured output/i);
-    expect(capture.calls).toBe(3);
+    expect(capture.calls).toBe(5);
   });
 
   it("does not retry a non-success result subtype — the SDK already retried internally", async () => {
