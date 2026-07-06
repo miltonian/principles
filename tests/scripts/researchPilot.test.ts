@@ -7,6 +7,9 @@ const page = (rows: unknown[]) => JSON.stringify({ rows: rows.map((row) => ({ ro
 
 const FIXED_NOW = "2026-07-03T00:00:00.000Z";
 
+/** Flush pending microtasks/macrotasks so deferred-promise fakes can advance one step. */
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 /** In-memory fake filesystem shared by all deps helpers in a test. */
 function makeFakeFs() {
   const files = new Map<string, string>();
@@ -115,6 +118,91 @@ describe("research-pilot fetch", () => {
     expect([...fakeFs.files.keys()].some((f) => f.startsWith(".bench-cache/"))).toBe(false);
     expect(fakeFs.files.has("benchmarks/research-pilot/manifest.json")).toBe(false);
   });
+
+  describe("held-out fetch (--held-out, --seed)", () => {
+    const twelve = Array.from({ length: 12 }, (_, i) => ({
+      sample_id: `s${String(i + 1).padStart(2, "0")}`,
+      prompt: `Prompt ${i + 1}`,
+      rubrics: [{ criterion: "c", weight: 1, axis: "a" }],
+    }));
+    const fetchText = async (url: string) => {
+      if (url.includes("offset=0")) return page(twelve);
+      if (url.includes("offset=100")) return page([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    it("errors 2 when the in-set manifest is missing, and writes nothing", async () => {
+      const { deps, err, fakeFs } = makeDeps({ fetchText });
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(2);
+      expect(err.join("\n").toLowerCase()).toContain("in-set fetch first");
+      expect(fakeFs.files.has("benchmarks/research-pilot/manifest-heldout.json")).toBe(false);
+    });
+
+    it("excludes in-set sampleIds, writes manifest-heldout.json, and leaves manifest.json untouched", async () => {
+      const { deps, fakeFs } = makeDeps({ fetchText });
+
+      const fetchCode = await run(["fetch"], deps);
+      expect(fetchCode).toBe(0);
+      const inSetManifest = JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest.json")!);
+      const inSetIds = new Set(inSetManifest.items.map((it: { sampleId: string }) => it.sampleId));
+
+      const heldOutCode = await run(["fetch", "--held-out"], deps);
+      expect(heldOutCode).toBe(0);
+
+      const heldOutManifest = JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest-heldout.json")!);
+      expect(heldOutManifest.count).toBe(2); // 12 fetched - 10 in-set = 2 remain
+      for (const item of heldOutManifest.items) {
+        expect(inSetIds.has(item.sampleId)).toBe(false);
+      }
+      expect(JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest.json")!)).toEqual(inSetManifest);
+    });
+
+    it("--seed changes which tasks are selected", async () => {
+      const { deps: deps1, fakeFs: fakeFs1 } = makeDeps({ fetchText });
+      await run(["fetch"], deps1);
+      const m1 = JSON.parse(fakeFs1.files.get("benchmarks/research-pilot/manifest.json")!);
+
+      const { deps: deps2, fakeFs: fakeFs2 } = makeDeps({ fetchText });
+      await run(["fetch", "--seed", "7"], deps2);
+      const m2 = JSON.parse(fakeFs2.files.get("benchmarks/research-pilot/manifest.json")!);
+
+      expect(m2.seed).toBe(7);
+      expect(m1.items.map((i: { sampleId: string }) => i.sampleId)).not.toEqual(
+        m2.items.map((i: { sampleId: string }) => i.sampleId)
+      );
+    });
+
+    it("a completed in-set run does not block the held-out stale-response guard", async () => {
+      const { deps, fakeFs } = makeDeps({ fetchText });
+      await run(["fetch"], deps);
+      fakeFs.files.set("benchmarks/research-pilot/responses/bare/s01.md", "done");
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(0);
+    });
+
+    it("a stale heldout response file blocks a held-out re-fetch", async () => {
+      const { deps, err, fakeFs } = makeDeps({ fetchText });
+      await run(["fetch"], deps);
+      fakeFs.files.set("benchmarks/research-pilot/responses/heldout-bare/s01.md", "done");
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(2);
+      expect(err.join("\n")).toContain("heldout-bare");
+      expect(fakeFs.files.has("benchmarks/research-pilot/manifest-heldout.json")).toBe(false);
+    });
+
+    it("an unknown flag to fetch is rejected with exit 2", async () => {
+      const { deps } = makeDeps({ fetchText });
+      const code = await run(["fetch", "--bogus"], deps);
+      expect(code).toBe(2);
+    });
+  });
 });
 
 function seedManifestAndCache(fakeFs: ReturnType<typeof makeFakeFs>, items: { sampleId: string; prompt: string }[]) {
@@ -191,6 +279,81 @@ describe("research-pilot run", () => {
     expect(line).toMatchObject({ sampleId: "x", unverified: ["agent-s2"], at: FIXED_NOW });
   });
 
+  describe("principles arm ontology persistence", () => {
+    it("persists the freshly generated ontology to .bench-cache/ontologies/<sampleId>.json", async () => {
+      const calls: string[] = [];
+      const runners: PrinciplesRunners = {
+        generate: async (_llm, objective) => {
+          calls.push(`gen:${objective}`);
+          return { ontology: { objective, marker: "fresh" } };
+        },
+        run: async (_llm, _ontology, prompt) => {
+          calls.push(`run:${prompt}`);
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls).toEqual(["gen:Prompt X", "run:Prompt X"]);
+      const cached = JSON.parse(fakeFs.files.get(".bench-cache/ontologies/x.json")!);
+      expect(cached).toEqual({ objective: "Prompt X", marker: "fresh" });
+    });
+
+    it("resuming with a persisted ontology skips generate and passes the persisted object to run", async () => {
+      const calls: Array<{ fn: string; arg?: unknown }> = [];
+      const runners: PrinciplesRunners = {
+        generate: async () => {
+          calls.push({ fn: "generate" });
+          return { ontology: { should: "not-happen" } };
+        },
+        run: async (_llm, ontology) => {
+          calls.push({ fn: "run", arg: ontology });
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+      const persisted = { objective: "Prompt X", marker: "persisted" };
+      fakeFs.mkdirp(".bench-cache/ontologies");
+      fakeFs.files.set(".bench-cache/ontologies/x.json", JSON.stringify(persisted));
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls.filter((c) => c.fn === "generate")).toHaveLength(0);
+      expect(calls).toContainEqual({ fn: "run", arg: persisted });
+    });
+
+    it("a malformed persisted ontology file is regenerated (no crash) and the cache is overwritten", async () => {
+      const calls: string[] = [];
+      const runners: PrinciplesRunners = {
+        generate: async (_llm, objective) => {
+          calls.push("generate");
+          return { ontology: { objective, marker: "regenerated" } };
+        },
+        run: async () => {
+          calls.push("run");
+          return { answer: "# Answer", unverified: [] };
+        },
+      };
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, runners });
+      seedManifestAndCache(fakeFs, [{ sampleId: "x", prompt: "Prompt X" }]);
+      fakeFs.mkdirp(".bench-cache/ontologies");
+      fakeFs.files.set(".bench-cache/ontologies/x.json", "{not valid json");
+
+      const code = await run(["run", "--arm", "principles"], deps);
+
+      expect(code).toBe(0);
+      expect(calls).toEqual(["generate", "run"]);
+      const cached = JSON.parse(fakeFs.files.get(".bench-cache/ontologies/x.json")!);
+      expect(cached).toEqual({ objective: "Prompt X", marker: "regenerated" });
+    });
+  });
+
   it("run without a manifest errors 2 telling the user to fetch first", async () => {
     const { deps, err } = makeDeps({ confirmYes: true });
     const code = await run(["run", "--arm", "bare"], deps);
@@ -247,6 +410,160 @@ describe("research-pilot run", () => {
     expect(llmCalls).toHaveLength(0);
   });
 
+  describe("--concurrency", () => {
+    /** A controllable fake LLM whose calls pause on a deferred promise until released, tracking in-flight count. */
+    function makeDeferredLlm() {
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const releases: Array<() => void> = [];
+      const llm: Llm = (async (req: any) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise<void>((resolve) => releases.push(resolve));
+        inFlight--;
+        return { report: `# ${req.prompt}` };
+      }) as unknown as Llm;
+      return { llm, releases, getMaxInFlight: () => maxInFlight };
+    }
+
+    it("--concurrency 2 runs at most two items in flight simultaneously, writes all responses, one log line each", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+        { sampleId: "d", prompt: "Prompt D" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "2"], deps);
+
+      await flush();
+      expect(releases.length).toBe(2); // exactly two in flight at first wave
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(2);
+      for (const id of ["a", "b", "c", "d"]) {
+        expect(fakeFs.files.has(`benchmarks/research-pilot/responses/bare/${id}.md`)).toBe(true);
+      }
+      const log = fakeFs.files.get("benchmarks/research-pilot/run-log-bare.jsonl")!;
+      expect(log.trim().split("\n")).toHaveLength(4);
+    });
+
+    it("defaults to concurrency 1 (sequential): only one item in flight at a time", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare"], deps);
+
+      await flush();
+      expect(releases.length).toBe(1);
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(1);
+    });
+
+    it("--concurrency 0 is rejected with exit 2", async () => {
+      const { deps, fakeFs } = makeDeps({ confirmYes: true });
+      seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+      const code = await run(["run", "--arm", "bare", "--concurrency", "0"], deps);
+      expect(code).toBe(2);
+    });
+
+    it("non-finite --concurrency is rejected with exit 2", async () => {
+      const { deps, fakeFs } = makeDeps({ confirmYes: true });
+      seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+      const code = await run(["run", "--arm", "bare", "--concurrency", "notanumber"], deps);
+      expect(code).toBe(2);
+    });
+
+    it("clamps a requested concurrency above 4 down to 4, logging a note", async () => {
+      const { llm, releases, getMaxInFlight } = makeDeferredLlm();
+      const { deps, out, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(
+        fakeFs,
+        Array.from({ length: 6 }, (_, i) => ({ sampleId: `s${i}`, prompt: `Prompt ${i}` }))
+      );
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "10"], deps);
+
+      await flush();
+      expect(releases.length).toBe(4); // clamped to max 4, not 10
+
+      while (releases.length > 0) {
+        releases.shift()!();
+        await flush();
+      }
+
+      const code = await runPromise;
+      expect(code).toBe(0);
+      expect(getMaxInFlight()).toBe(4);
+      expect(out.some((l) => l.includes("10") && l.includes("4"))).toBe(true);
+    });
+
+    it("skips a failing item, still runs the rest, exits 2 naming the failure (skip-and-continue; supersedes fail-fast)", async () => {
+      const callOrder: string[] = [];
+      let releaseA: () => void = () => {};
+      const llm: Llm = (async (req: any) => {
+        const prompt = req.prompt as string;
+        callOrder.push(prompt);
+        if (prompt.startsWith("Prompt B")) throw new Error("boom-b");
+        if (prompt.startsWith("Prompt A")) {
+          await new Promise<void>((resolve) => {
+            releaseA = resolve;
+          });
+        }
+        return { report: `# ${prompt}` };
+      }) as unknown as Llm;
+
+      const { deps, err, fakeFs } = makeDeps({ confirmYes: true, llm });
+      seedManifestAndCache(fakeFs, [
+        { sampleId: "a", prompt: "Prompt A" },
+        { sampleId: "b", prompt: "Prompt B" },
+        { sampleId: "c", prompt: "Prompt C" },
+        { sampleId: "d", prompt: "Prompt D" },
+      ]);
+
+      const runPromise = run(["run", "--arm", "bare", "--concurrency", "2"], deps);
+
+      await flush(); // let "a" start (deferred) and "b" fail
+
+      releaseA();
+      await flush();
+
+      const code = await runPromise;
+
+      expect(code).toBe(2);
+      expect(err.join("\n")).toContain("b");
+      // Skip-and-continue semantics (supersedes fail-fast): the failing item is
+      // reported and left resumable; every OTHER item still completes.
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/a.md")).toBe(true);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/b.md")).toBe(false);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/c.md")).toBe(true);
+      expect(fakeFs.files.has("benchmarks/research-pilot/responses/bare/d.md")).toBe(true);
+      expect(callOrder.some((p) => p.startsWith("Prompt C"))).toBe(true);
+      expect(callOrder.some((p) => p.startsWith("Prompt D"))).toBe(true);
+    });
+  });
+
 });
 
 describe("research-pilot status", () => {
@@ -275,5 +592,91 @@ describe("research-pilot unknown subcommand", () => {
     const { deps } = makeDeps();
     const code = await run(["bogus"], deps);
     expect(code).toBe(2);
+  });
+});
+
+describe("worker pool — skip-and-continue on item failure (live: SDK flake bursts killed multi-hour runs)", () => {
+  it("a failing item is recorded but later items still run; exit 2 names the failure", async () => {
+    const { deps, err, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [
+      { sampleId: "a", prompt: "Prompt A" },
+      { sampleId: "b", prompt: "Prompt B" },
+      { sampleId: "c", prompt: "Prompt C" },
+    ]);
+    const ran: string[] = [];
+    deps.runners = {
+      generate: async () => ({ ontology: { o: 1 } }),
+      run: async (_l: unknown, _o: unknown, prompt: string) => {
+        const id = prompt.includes("Prompt A") ? "a" : prompt.includes("Prompt B") ? "b" : "c";
+        ran.push(id);
+        if (id === "b") throw new Error("SDK finalize flake");
+        return { answer: "# Report body", unverified: [], discoveries: [] };
+      },
+    } as never;
+
+    const code = await run(["run", "--arm", "principles"], deps);
+
+    expect(code).toBe(2);                                   // failure still surfaces
+    expect(ran.sort()).toEqual(["a", "b", "c"]);            // c RAN despite b failing
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/a.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/c.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/b.md")).toBe(false);
+    expect(err.join(" ")).toContain('"b"');
+    // mid-pass visibility: the failure line appears immediately, tagged with the arm dir
+    expect(err.some((l) => l.includes("FAILED mid-pass") && l.includes("b"))).toBe(true);
+  });
+});
+
+describe("run --exec-model (generation on default llm, execution on the aliased model)", () => {
+  it("resolves the haiku alias, runs generate on deps.llm and run on the exec llm, and isolates artifacts", async () => {
+    const { deps, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+    const seen: { model?: string; genLlm?: unknown; runLlm?: unknown } = {};
+    const execLlm = (async () => ({})) as unknown as Llm;
+    deps.makeLlm = (model: string) => {
+      seen.model = model;
+      return execLlm;
+    };
+    deps.runners = {
+      generate: async (llm: unknown) => {
+        seen.genLlm = llm;
+        return { ontology: { o: 1 } };
+      },
+      run: async (llm: unknown) => {
+        seen.runLlm = llm;
+        return { answer: "# R", unverified: [], discoveries: [] };
+      },
+    } as never;
+
+    const code = await run(["run", "--arm", "principles", "--exec-model", "haiku"], deps);
+
+    expect(code).toBe(0);
+    expect(seen.model).toBe("claude-haiku-4-5-20251001");
+    expect(seen.genLlm).toBe(deps.llm);
+    expect(seen.runLlm).toBe(execLlm);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles-haiku/a.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/run-log-principles-haiku.jsonl")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/a.md")).toBe(false);
+  });
+
+  it("resolves the sonnet alias", async () => {
+    const { deps } = makeDeps({ confirmYes: true });
+    const { fakeFs } = { fakeFs: undefined as never };
+    void fakeFs;
+    let model = "";
+    deps.makeLlm = (m: string) => { model = m; return (async () => ({})) as unknown as Llm; };
+    deps.runners = {
+      generate: async () => ({ ontology: {} }),
+      run: async () => ({ answer: "# R", unverified: [], discoveries: [] }),
+    } as never;
+    await run(["run", "--arm", "principles", "--exec-model", "sonnet"], deps);
+    expect(model).toBe("claude-sonnet-5");
+  });
+
+  it("rejects --exec-model with --arm bare", async () => {
+    const { deps, err } = makeDeps({ confirmYes: true });
+    const code = await run(["run", "--arm", "bare", "--exec-model", "haiku"], deps);
+    expect(code).toBe(2);
+    expect(err.join(" ")).toContain("--exec-model");
   });
 });

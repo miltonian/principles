@@ -15,7 +15,7 @@ const report: GenerationReport = {
     outputRubric: [{ id: "o-responsive", description: "addresses prompt", source: "generic" }],
   },
   vet: { kept: [], assumptions: [], rejected: [] },
-  decomposition: { status: "converged", result: [], iterations: 1, history: [] },
+  decomposition: { status: "converged", result: { subtasks: [], coverageMap: [] }, iterations: 1, history: [] },
 };
 
 describe("emitPackage", () => {

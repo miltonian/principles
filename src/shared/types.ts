@@ -6,6 +6,22 @@ export interface Truth {
   type: TruthType;
   statement: string;
   rationale: string;
+  /** Ids of survey Observations this truth cites as evidence (additive; empty/absent = derived by reasoning alone). */
+  groundedIn?: string[];
+}
+
+export type ObservationKind = "genre-convention" | "topic-axis";
+
+/**
+ * A candidate observation from surveying the real-world landscape BEFORE
+ * truths are derived. Evidence, not premises: deriveTruths may cite it,
+ * the skeptic may reject it exactly like a derived truth.
+ */
+export interface Observation {
+  id: string; // "obs1", "obs2", ...
+  kind: ObservationKind;
+  statement: string;
+  source: string;
 }
 
 /** A unit of decomposition. Must cite the truths it serves. */
@@ -17,6 +33,18 @@ export interface Subtask {
   /** Model-proposed, judge-verified request for web search/fetch. */
   needsWeb?: boolean;
   webJustification?: string;
+}
+
+/**
+ * One row of the decomposition's explicit breadth map: a dimension an expert
+ * treatment of the topic would cover, either handled by a subtask or
+ * explicitly excluded with a reason. Exactly one of handledBy/exclusionReason
+ * must be non-empty (see coverage.ts's unmappedBreadth).
+ */
+export interface CoverageMapRow {
+  dimension: string;
+  handledBy: string; // subtask id, or "" if excluded
+  exclusionReason: string; // non-empty iff excluded
 }
 
 /** One evaluation criterion in a rubric. */
@@ -62,4 +90,8 @@ export interface Ontology {
   subtasks: Subtask[];
   agents: AgentSpec[];
   outputRubric: Criterion[];
+  /** The decomposition's explicit breadth map (additive — old ontologies unaffected). */
+  coverageMap?: CoverageMapRow[];
+  /** The landscape survey that grounded truth derivation (additive — old ontologies unaffected). */
+  survey?: Observation[];
 }

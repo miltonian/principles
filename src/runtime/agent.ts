@@ -7,14 +7,19 @@ import { Blackboard } from "./blackboard";
 // the SDK's structured-output finalize failing all 5 internal attempts when the
 // model couldn't fit two report-sized strings in one payload — it emitted exactly
 // one field per attempt. result is the deliverable; notes must never block it.
+// nullish (null OR absent): live v4 smoke showed the SDK emitting explicit
+// null for fields the model skips — .optional() alone rejects null and the
+// zod re-validation in the gateway kills the whole agent call.
 const AgentOutputSchema = z.object({
-  notes: z.string().optional(),
+  notes: z.string().nullish(),
   result: z.string(),
+  outOfFrame: z.string().nullish(),
 });
 
 export interface AgentOutput {
   notes: string;
   result: string;
+  outOfFrame?: string;
 }
 
 /** One agent = one LLM call over the spec, the user prompt, and the full blackboard. */
@@ -33,6 +38,7 @@ export async function runAgent(
       `Produce:`,
       `- result: your deliverable. Expected shape: ${spec.outputHint}`,
       `- notes: reasoning, caveats, and nuance that downstream agents need. Do not repeat the result here. Keep notes under 200 words; if space is tight, result takes priority.`,
+      `If you discover something important that your subtask's frame cannot hold, put one short note in outOfFrame — it will be surfaced, not lost.`,
       ...(spec.webTools
         ? [`You may use web search and web fetch for this subtask. Cite the URLs you used in your notes.`]
         : []),
@@ -51,5 +57,5 @@ export async function runAgent(
     schemaName: "agent_output",
     ...(spec.webTools ? { webTools: true } : {}),
   });
-  return { result: out.result, notes: out.notes ?? "" };
+  return { result: out.result, notes: out.notes ?? "", outOfFrame: out.outOfFrame ?? undefined };
 }

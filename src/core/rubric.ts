@@ -7,6 +7,7 @@ export function decompositionRubric(truths: Truth[]): Criterion[] {
     { id: "d-feasible", source: "generic", description: "Each subtask is achievable by a text-only LLM: analyzing, summarizing, drafting, reasoning. No physical actions, no external systems." },
     { id: "d-complete", source: "generic", description: "The subtasks jointly achieve the full objective; nothing the objective requires is missing." },
     { id: "d-web", source: "generic", description: "Web access (needsWeb) is requested only where the subtask genuinely requires external material, and each request's justification is concrete — not speculative convenience." },
+    { id: "d-breadth", source: "generic", description: "The coverage map genuinely spans what an expert treatment would include; exclusions are reasoned, not convenient; the subtasks do not silently narrow the objective; frame challenges raised by the external skeptic are adopted or explicitly excluded with reasons — never ignored." },
   ];
   const fromTruths: Criterion[] = truths
     .filter((t) => t.type === "constraint")
@@ -22,7 +23,7 @@ export function decompositionRubric(truths: Truth[]): Criterion[] {
 export function outputRubric(truths: Truth[]): Criterion[] {
   const generic: Criterion[] = [
     { id: "o-responsive", source: "generic", description: "The output directly addresses the user's prompt — not a generic essay near the topic." },
-    { id: "o-grounded", source: "generic", description: "The output does not fabricate facts; claims are grounded in the prompt, prior agent outputs, or clearly flagged as uncertain." },
+    { id: "o-grounded", source: "generic", description: "Claims are grounded via attribution to sources or prior agent material; nothing is fabricated — and specifics available in the material (names, figures, sources) are asserted with attribution rather than systematically omitted or hedged away." },
   ];
   const fromTruths: Criterion[] = truths
     .filter((t) => t.type === "constraint")

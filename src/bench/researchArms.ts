@@ -47,12 +47,16 @@ export function realRunners(): PrinciplesRunners {
 export async function runPrinciplesArm(
   llm: Llm,
   task: ResearchTask,
-  runners?: PrinciplesRunners
+  runners?: PrinciplesRunners,
+  execLlm?: Llm
 ): Promise<ArmResponse> {
   const r = runners ?? realRunners();
 
   const genResult = await r.generate(llm, task.prompt);
-  const runResult = await r.run(llm, genResult.ontology, task.prompt);
+  // Execution may run on a different (smaller) model than generation: the
+  // compiled ontology carries the Opus-derived intelligence; execLlm tests
+  // how much of it survives a cheaper execution engine.
+  const runResult = await r.run(execLlm ?? llm, genResult.ontology, task.prompt);
 
   return {
     sampleId: task.sampleId,

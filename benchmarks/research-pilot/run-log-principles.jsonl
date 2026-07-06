@@ -1,10 +1,3 @@
-{"sampleId":"6847465956a0f6376a6054a5","wordCount":3644,"unverified":[],"at":"2026-07-04T03:19:27.993Z"}
-{"sampleId":"6847465956a0f6376a605469","wordCount":2965,"unverified":["agent-s5"],"at":"2026-07-04T04:11:27.869Z"}
-{"sampleId":"6847465956a0f6376a6053ca","wordCount":1326,"unverified":["agent-s3","agent-s9","agent-s4","agent-s5","agent-s7","agent-s6","agent-s8"],"at":"2026-07-04T04:57:39.620Z"}
-{"sampleId":"6847465956a0f6376a6053ce","wordCount":4946,"unverified":[],"at":"2026-07-04T06:05:37.623Z"}
-{"sampleId":"6847465956a0f6376a605440","wordCount":1020,"unverified":[],"at":"2026-07-04T06:36:57.560Z"}
-{"sampleId":"6847465956a0f6376a60543d","wordCount":2544,"unverified":[],"at":"2026-07-04T06:58:19.770Z"}
-{"sampleId":"6847465956a0f6376a6053d8","wordCount":2232,"unverified":[],"at":"2026-07-04T07:28:23.213Z"}
-{"sampleId":"684397d188c1deceb49af315","wordCount":11480,"unverified":[],"at":"2026-07-04T08:46:49.221Z"}
-{"sampleId":"6847465956a0f6376a605348","wordCount":237,"unverified":["agent-s2","agent-s3","agent-s4"],"at":"2026-07-04T09:15:36.182Z"}
-{"sampleId":"6847465956a0f6376a605391","wordCount":5109,"unverified":["agent-s2","agent-s4","agent-s5","agent-s6"],"at":"2026-07-04T09:59:31.480Z"}
+{"sampleId":"6847465956a0f6376a60542d","wordCount":5691,"unverified":[],"at":"2026-07-06T05:00:48.042Z"}
+{"sampleId":"6847465956a0f6376a6053bb","wordCount":4608,"unverified":[],"at":"2026-07-06T13:41:31.215Z"}
+{"sampleId":"6847465956a0f6376a6053f3","wordCount":15229,"unverified":["synthesis"],"at":"2026-07-06T16:53:47.693Z"}

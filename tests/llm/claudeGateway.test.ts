@@ -80,7 +80,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(capture.args.options.model).toBe("claude-opus-4-8");
     expect(capture.args.options.systemPrompt).toBe("sys");
     expect(capture.args.options.allowedTools).toEqual([]);
-    expect(capture.args.options.maxTurns).toBe(4);
+    expect(capture.args.options.maxTurns).toBe(8);
     expect(capture.args.options.outputFormat.type).toBe("json_schema");
     expect(capture.args.options.outputFormat.schema.properties.a).toBeDefined();
   });
@@ -198,7 +198,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(capture.calls).toBe(2);
   });
 
-  it("gives up after MAX_ATTEMPTS (3) when structured_output never arrives", async () => {
+  it("gives up after MAX_ATTEMPTS (5) when structured_output never arrives", async () => {
     const capture = { calls: 0 };
     const llm = makeClaudeAgentSdkLlm({
       queryFn: fakeQuerySequence([[{ type: "result", subtype: "success" }]], capture),
@@ -210,9 +210,9 @@ describe("makeClaudeAgentSdkLlm", () => {
       error = e as Error;
     }
     expect(error).toBeDefined();
-    expect(error!.message).toMatch(/after 3 attempts/);
+    expect(error!.message).toMatch(/after 5 attempts/);
     expect(error!.message).toMatch(/structured_output|structured output/i);
-    expect(capture.calls).toBe(3);
+    expect(capture.calls).toBe(5);
   });
 
   it("does not retry a non-success result subtype — the SDK already retried internally", async () => {
@@ -276,6 +276,6 @@ describe("webTools option", () => {
     await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
     expect(capture.args.options.tools).toEqual([]);
     expect(capture.args.options.allowedTools).toEqual([]);
-    expect(capture.args.options.maxTurns).toBe(4);
+    expect(capture.args.options.maxTurns).toBe(8);
   });
 });

@@ -1,59 +1,77 @@
-# Research pilot: bare model vs. Principles-compiled teams
+# Research pilot: bare model vs. Principles-compiled teams — a four-version arc
 
-**Result: the bare model won. Mean rubric compliance 0.669 vs 0.580 (Δ −0.089, n=10, not statistically significant — but no evidence of improvement, and three tasks show the framework can badly hurt output quality).** This page documents the loss, the autopsy, and what it falsified. We fixed the sample, the arms, and the decision rule before any result existed; this number ships because that's the deal.
+**Final in-set result: v4 beats the bare model — mean 0.698 vs 0.653, winning 7 of 9 tasks.** It took four versions to get there, and the first one lost badly (0.552). Every version was rerun on the same locked tasks under the same referee; every fix was designed from the previous version's measured failure; the two v4 predictions were pre-registered in writing and resolved one-validated, one-falsified. This page documents all of it — the losses too, because we fixed the sample, the arms, and the decision rule before any result existed, and the numbers ship because that's the deal.
 
 ## Setup
 
 - **Arena:** [ResearchRubrics](https://github.com/scaleapi/researchrubrics) (Scale AI, ICLR 2026) — 10 tasks sampled from its 101 by seeded PRNG (seed `20260703`, manifest committed before any response existed). 21–34 expert-written weighted rubrics per task.
 - **Arms, same model (claude-opus-4-8), same web access:**
   - `bare` — one call: the task prompt + "Respond with a comprehensive research report in Markdown," web tools on.
-  - `principles` — `generate-agents` compiles a team per task (typed truths → adversarial vetting → cited decomposition → agents), runtime executes it with judged web gating.
+  - `principles` — `generate-agents` compiles a team per task (survey-grounded typed truths → adversarial vetting → frame challenge → cited decomposition → agents), runtime executes it with judged web gating, render gates, and a specificity-retention gate.
 - **Grading:** Scale's own grader, config-level changes only (GA Gemini 2.5 Pro snapshot, direct API). One Gemini call per rubric, binary Satisfied/Not; score = Σ(weight×satisfied)/Σ(positive weights) — their formula, their prompts. A Gemini judge scoring Claude systems: no home-team bias available.
-- Per-rubric verdicts: [`grading/`](grading/). Responses: [`responses/`](responses/). Run logs with word counts + honesty flags: `run-log-*.jsonl`.
+- Per-version artifacts: `v1-*` … `v4-*` directories (responses, per-rubric grading, run logs with word counts + honesty flags). In-set bare arm: [`inset-responses-bare/`](inset-responses-bare/), [`inset-grading-bare/`](inset-grading-bare/).
 
-## Scores (their grader, their formula)
+## The four-version arc (official grades, 9 common tasks)
 
-| task | bare | principles | Δ | principles word count (bare) |
-|---|---|---|---|---|
-| 605391 | 0.682 | **0.835** | +0.153 | 5,109 (2,428) |
-| 6054a5 | 0.544 | **0.684** | +0.140 | 3,644 (1,914) |
-| 6053d8 | 0.500 | **0.540** | +0.040 | 2,232 (1,769) |
-| 605469 | 0.415 | **0.439** | +0.024 | 2,965 (2,949) |
-| 9af315 | 0.818 | **0.833** | +0.015 | 11,480 (4,684) |
-| 6053ce | **0.670** | 0.651 | −0.019 | 4,946 (2,468) |
-| 605348 | **0.629** | 0.435 | −0.194 | **237** (2,118) |
-| 60543d | **0.891** | 0.600 | −0.291 | 2,544 (1,697) |
-| 605440 | **0.698** | 0.326 | −0.372 | **1,020** (2,961) |
-| 6053ca | **0.847** | 0.458 | −0.389 | 1,326 (2,686) |
-| **mean** | **0.669** | 0.580 | **−0.089** | |
+| task | bare | v1 | v2 | v3 | v4 |
+|---|---|---|---|---|---|
+| U-Net design (6053ca) | 0.847 | 0.458 | 0.819 | 0.875 | **0.958** |
+| MCP guide (6054a5) | 0.544 | 0.684 | 0.684 | 0.658 | **0.722** |
+| Business report (605391) | 0.682 | 0.835 | 0.800 | 0.800 | **0.835** |
+| Alignment proof (605440) | 0.698 | 0.326 | 0.395 | 0.581 | **0.721** |
+| Palantir brief (605348) | 0.629 | 0.435 | 0.790 | 0.710 | **0.710** |
+| Haiti brief (6053d8) | 0.500 | 0.540 | 0.560 | 0.300 | **0.560** |
+| Vitamin D (6053ce) | 0.670 | 0.651 | 0.745 | 0.708 | **0.708** |
+| Automation essay (605469) | **0.415** | 0.439 | 0.451 | 0.463 | 0.415 |
+| YouTube short (60543d) | **0.891** | 0.600 | 0.509 | 0.491 | 0.655 |
+| **mean** | 0.653 | 0.552 | 0.639 | 0.621 | **0.698** |
+| **wins vs bare** | — | 3/9 | 5/9 | 6/9 | **7/9** |
 
-Context (published binary-mode baselines from the benchmark's paper — different systems, different dates, not head-to-head): Gemini Deep Research 0.615, OpenAI DR 0.597, Perplexity DR 0.487. The bare Opus arm (0.669) — a single prompt with web tools — outscores all of them; treat that comparison loosely (their runs predate this model).
+(The 10th task, a novel (9af315), completed v1–v3 but not v4 before we froze; its v1–v3 grades are in the version directories.)
 
-## Autopsy: the losses are mechanical, not mysterious
+What each version fixed, from the previous version's autopsy:
 
-The five wins are moderate; three of the five losses are catastrophic, and each has a visible cause in the shipped artifacts:
+- **v1 → loss (0.552).** The teams reasoned well; the final synthesis step — the only unverified component in a framework whose thesis is "never ship unverified work" — kept fumbling the render: a courtroom verdict instead of a report, "I'm the synthesis agent…" shipped to the customer, a 237-word stub.
+- **v2: synthesis contract (0.639, statistical tie).** Deliverable contract fixed before writing, mechanical render gates, synthesis gets its own judge + refine loop. Rendering disasters gone; remaining deficit concentrated in tasks whose *frame* was wrong before any agent ran.
+- **v3: deliverable framing (0.621).** Artifact truths + breadth/coverage map. Modest; stage-attribution forensics on the transcripts then showed ~80% of all lost weight was decided at the truths step — the frame locked in from priors, and every downstream check verified coverage *of the wrong frame*.
+- **v4: grounded framing (0.698, first win).** A web-grounded landscape survey *before* truth derivation (evidence in, authority out — the skeptic attacks the survey too); a frame-level skeptic licensed to say "you're solving the wrong problem"; a specificity-retention gate (names/figures/sources must survive to the deliverable or be listed as conscious omissions); o-grounded reworded to reward attribution rather than omission.
 
-1. **Verdict bias** (`605440`, 0.326): asked for a research report, the compiled team produced a 1,020-word *adjudication* (verbatim first line: `# Verdict: The Proposition Is **False** — Provably So`). The pipeline's evaluation heritage framed the goal as claim-judging; expert rubrics wanted comprehensive coverage. First line of [the response](responses/principles/6847465956a0f6376a605440.md) says it all.
-2. **Fourth-wall leakage + honesty tax** (`6053ca`, 0.458): the synthesis opens with "I'm the synthesis agent; the blackboard already contains…" — internal role narration shipped in the deliverable — then leads with verification caveats (7 agents unverified) before content. Honesty flags are the right mechanism; putting them ahead of the deliverable is a rendering bug.
-3. **Synthesis collapse** (`605348`, 0.435): with 3 agents unverified, synthesis emitted a 237-word stub instead of a report.
+## Pre-registered predictions (written before the v4 rerun)
 
-The wins falsify "multi-agent is inherently worse here": +0.153 came with 5,109 words and four honestly-flagged agents. The machinery wins when synthesis writes a full report; it loses when the last mile — synthesis discipline — fails. Coverage, not eloquence, moves this metric (visible in the word-count column both ways).
+- **P1 — YouTube ≥ 0.70: MISSED** (0.655, up from 0.491). Survey-grounded genre awareness helps and is not sufficient for creator-packaging tasks. Falsified, on the record.
+- **P2 — alignment ≥ 0.64: MET** (0.721, up from 0.395 in v2). The frame skeptic was designed for exactly this failure; it worked.
+- **P3 — no v3 win regresses >0.05 vs bare: MET** (automation slipped to exactly parity, −0.048 vs its v3 score but not >0.05 below bare).
+- **P4 — held-out generalization: IN PROGRESS** (below).
+
+## Held-out check (overfitting control) — partial, in progress
+
+Four iterations on the same ten tasks could overfit to those tasks. P4 requires the result to replicate on ten fresh tasks (seed `20260705`, disjoint by construction). Status when this page froze: all 10 bare responses done; 3 principles(v4) pairs officially graded — **one win (+0.104), one exact tie (0.907), one narrow loss (−0.031)**; v4 mean slightly ahead on n=3. The run was repeatedly interrupted by subscription usage limits; the complete held-out table ships in a follow-up. Partial artifacts: [`responses/`](responses/), [`grading/heldout-bare/`](grading/heldout-bare/), [`grading/heldout-principles/`](grading/heldout-principles/).
+
+## Execution-model experiment — preliminary
+
+Because generation (compilation) and execution are separate phases, `--exec-model` runs the execution phase on a smaller model against the *identical cached ontology*. Early findings (partial, honest):
+
+- **Haiku 4.5 execution:** quality collapsed on the one completed task (pre-graded ~0.36 vs bare 0.625 on the same task — breadth loss plus factual errors Opus doesn't make), and the SDK's structured-output finalize step proved markedly more fragile on judge-verdict payloads. The compiled ontology organizes a small model; it does not make it know things.
+- **Sonnet 5 execution:** never completed a task before we paused for usage limits, but immediately exposed two Opus-calibrated constants in our own gateway (tool-less and web turn caps — Sonnet chunks long generations across more turns). Both fixed and regression-tested.
+- Takeaway so far: *the intelligence does not simply transplant.* Execution models differ in quality, reliability, and even which infrastructure assumptions they violate.
 
 ## What this falsifies, and what it doesn't
 
-- **Falsified:** "compiling a thinking system reliably improves report quality over the bare frontier model" — not at n=10, not with this synthesis stage.
-- **Not tested here:** the framework's verification claims (audit trails, evidence-cited judging, honesty flags — this arena doesn't score them), and nothing about the fixed-last-mile version.
-- Caveats: n=10, single seed, one model, one arena; compliance correlates mildly with length (r≈0.25 per the benchmark authors); the 4 early-graded reports' verdicts were cached and reused unchanged.
+- **Falsified (v1):** "compiling a thinking system reliably improves report quality over the bare frontier model" — not without a verified last mile.
+- **Falsified (P1):** "survey grounding closes creative-packaging gaps."
+- **Supported (in-set):** frame-level grounding + frame skepticism + retention gates produce a measurable win over the bare model on documented-convention tasks (engineering, technical guides, structured briefs), with the residual losses concentrated in breadth-checklist and register/taste genres — some of which are the deliberate price of refusing to fabricate.
+- **Open:** P4 (held-out generalization), the full execution-model question.
+- Caveats: n=9–10, single seed each, one model family, one arena; compliance correlates mildly with length (r≈0.25 per the benchmark authors).
 
 ## Reproduce
 
 ```bash
-yarn research-pilot fetch          # manifest (seeded)
-yarn research-pilot run --arm bare --yes && yarn research-pilot run --arm principles --yes
+yarn research-pilot fetch                        # in-set manifest (seeded)
+yarn research-pilot fetch --held-out             # held-out manifest (disjoint, seeded)
+yarn research-pilot run --arm bare --yes
+yarn research-pilot run --arm principles --yes
+yarn research-pilot run --arm principles --exec-model sonnet --yes   # execution-model experiment
 # grading: clone scaleapi/researchrubrics, GEMINI_API_KEY in .env, run the committed driver: grade_arm.py
-# (note: this run's committed verdict files carry weight/score/confidence per rubric; the criterion-text and
-#  reasoning columns were nulled by a key-name mismatch, fixed in grade_arm.py for future runs — scores are
-#  fully recomputable from weight×score, which is how they were independently verified)
 ```
 
-Generated 2026-07-03/04. Model calls ran on subscription credentials; grading cost ≈ $9 of Gemini 2.5 Pro.
+Generated 2026-07-03 → 2026-07-06. Model calls ran on subscription credentials; grading cost ≈ $25 of Gemini 2.5 Pro across all versions.

@@ -185,11 +185,13 @@ describe("compileRubric", () => {
   it("runs foundations → draft → guidance → meta-check and assembles provenance", async () => {
     const llm = (async (req: any) => {
       switch (req.schemaName) {
+        case "landscape_survey":
+          return { observations: [] };
         case "typed_truths":
           return {
             truths: [
-              { type: "constraint", statement: "must cite sources", rationale: "r" },
-              { type: "fact", statement: "unverifiable-ish claim", rationale: "r" },
+              { type: "constraint", statement: "must cite sources", rationale: "r", groundedIn: [] },
+              { type: "fact", statement: "unverifiable-ish claim", rationale: "r", groundedIn: [] },
             ],
           };
         case "truth_attack":
@@ -198,7 +200,10 @@ describe("compileRubric", () => {
             ? { verdict: "survives", strongestAttack: "none", justification: "solid" }
             : { verdict: "demote", strongestAttack: "cannot verify", justification: "j" };
         case "decomposition":
-          return { subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }] };
+          return {
+            subtasks: [{ description: "analyze sources", servesTruths: ["t1"], dependsOnIndices: [], needsWeb: false, webJustification: "" }],
+            coverageMap: [{ dimension: "source credibility", handledBy: "1", exclusionReason: "" }],
+          };
         case "rubric_verdicts":
           // passes BOTH the decomposition judge (d-*) and the meta-judge (m-*):
           return req.prompt.includes("m-gradeable")
@@ -212,10 +217,13 @@ describe("compileRubric", () => {
                 { criterionId: "d-feasible", pass: true, evidence: "text-only" },
                 { criterionId: "d-complete", pass: true, evidence: "covers objective" },
                 { criterionId: "d-web", pass: true, evidence: "no web requests made or all justified" },
+                { criterionId: "d-breadth", pass: true, evidence: "map spans the topic" },
                 { criterionId: "d-t1", pass: true, evidence: "constraint carried" },
               ] };
         case "rubric_guidance":
           return { guidance: [{ criterionId: "c-t1", evidenceGuidance: "quote the citation" }] };
+        case "frame_challenges":
+          return { challenges: [] };
         default:
           throw new Error(`unexpected schema ${req.schemaName}`);
       }

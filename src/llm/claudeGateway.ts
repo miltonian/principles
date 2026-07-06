@@ -19,18 +19,23 @@ const DEFAULT_SYSTEM =
 // undefined, the stream ends with no result message at all, or the CLI
 // subprocess throws (observed: "Claude Code process exited with code 1").
 // Identical retried calls succeed, so we retry the whole query bounded.
-const MAX_ATTEMPTS = 3;
+// 3 proved too tight in live v3/v4 runs: the flake arrives in bursts (three
+// consecutive misses on one call observed twice, killing multi-hour runs).
+const MAX_ATTEMPTS = 5;
 
 // Maximum turns per query. Tools are disabled (tools: [], allowedTools: []),
 // so extra turns only continue the same text/structured-output generation
 // without agent-loop risk. Single turn (1) is too tight — live runs showed
 // legitimate 2-turn completions and an error_max_turns failure on long
-// decompositions. Allow 4 to be safe.
-const MAX_TURNS = 4;
+// decompositions. 4 sufficed for Opus, but Sonnet 5 chunks long generations
+// across more turns (live: error_max_turns(4) on a report-sized agent_output).
+const MAX_TURNS = 8;
 
 // Web tool loops consume turns fetching/searching before finalizing structured
 // output, so they need far more headroom than the tool-less MAX_TURNS above.
-export const WEB_MAX_TURNS = 12;
+// 12 sufficed for Opus; Sonnet 5 chunks output across more turns on top of its
+// tool loop (live: error_max_turns(12) on a web agent's report-sized output).
+export const WEB_MAX_TURNS = 24;
 
 /** Thrown for outcomes that must propagate immediately, never retried. */
 class NonRetryableSdkError extends Error {}

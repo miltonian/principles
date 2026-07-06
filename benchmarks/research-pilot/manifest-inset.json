@@ -1,0 +1,47 @@
+{
+  "dataset": "ScaleAI/researchrubrics",
+  "seed": 20260703,
+  "count": 10,
+  "items": [
+    {
+      "sampleId": "6847465956a0f6376a6054a5",
+      "rubricCount": 26
+    },
+    {
+      "sampleId": "6847465956a0f6376a605469",
+      "rubricCount": 34
+    },
+    {
+      "sampleId": "6847465956a0f6376a6053ca",
+      "rubricCount": 23
+    },
+    {
+      "sampleId": "6847465956a0f6376a6053ce",
+      "rubricCount": 26
+    },
+    {
+      "sampleId": "6847465956a0f6376a605440",
+      "rubricCount": 23
+    },
+    {
+      "sampleId": "6847465956a0f6376a60543d",
+      "rubricCount": 24
+    },
+    {
+      "sampleId": "6847465956a0f6376a6053d8",
+      "rubricCount": 31
+    },
+    {
+      "sampleId": "684397d188c1deceb49af315",
+      "rubricCount": 24
+    },
+    {
+      "sampleId": "6847465956a0f6376a605348",
+      "rubricCount": 21
+    },
+    {
+      "sampleId": "6847465956a0f6376a605391",
+      "rubricCount": 25
+    }
+  ]
+}
