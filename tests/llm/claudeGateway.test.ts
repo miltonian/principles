@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { z } from "zod";
 import { makeClaudeAgentSdkLlm, WEB_MAX_TURNS } from "../../src/llm/claudeGateway";
 
@@ -55,6 +55,8 @@ const fakeQueryThrowsOnFirstCall = (messages: unknown[], capture?: { calls: numb
 };
 
 describe("makeClaudeAgentSdkLlm", () => {
+  beforeEach(() => { if (process.env.PRINCIPLES_BACKOFF_BASE_MS === undefined) process.env.PRINCIPLES_BACKOFF_BASE_MS = "0"; });
+  afterAll(() => { delete process.env.PRINCIPLES_BACKOFF_BASE_MS; });
   it("returns the validated structured output", async () => {
     const llm = makeClaudeAgentSdkLlm({
       queryFn: fakeQuery([{ type: "assistant" }, success({ answer: "42" })]),
@@ -297,6 +299,29 @@ describe("webTools option", () => {
     expect(result).toEqual({ a: "unstuck" });
     expect(call).toBe(2);
     delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
+  });
+
+
+  it("backs off between retries on success-without-output (usage-limit soft-fail)", async () => {
+    process.env.PRINCIPLES_BACKOFF_BASE_MS = "10";
+    const capture = { calls: 0 };
+    const llm = makeClaudeAgentSdkLlm({
+      queryFn: fakeQuerySequence(
+        [
+          [{ type: "result", subtype: "success" }],
+          [{ type: "result", subtype: "success" }],
+          [success({ a: "recovered" })],
+        ],
+        capture
+      ),
+    });
+    const start = Date.now();
+    const result = await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
+    const elapsed = Date.now() - start;
+    expect(result).toEqual({ a: "recovered" });
+    expect(capture.calls).toBe(3);
+    expect(elapsed).toBeGreaterThanOrEqual(25); // 10ms + 20ms backoff between the 3 attempts
+    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
   });
 
 });

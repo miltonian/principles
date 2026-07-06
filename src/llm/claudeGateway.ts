@@ -30,6 +30,13 @@ const MAX_ATTEMPTS = 5;
 // Read per-call (not at module load) so tests and ops can tune it via env.
 const attemptTimeoutMs = (): number => Number(process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS) || 300_000;
 
+// Backoff between whole-query retries (see the retry loop for why). Env-tunable
+// so tests run instant and ops can widen it when the API is degraded.
+const backoffBaseMs = (): number => {
+  const raw = process.env.PRINCIPLES_BACKOFF_BASE_MS;
+  return raw !== undefined && Number.isFinite(Number(raw)) ? Number(raw) : 1000;
+};
+
 // Maximum turns per query. Tools are disabled (tools: [], allowedTools: []),
 // so extra turns only continue the same text/structured-output generation
 // without agent-loop risk. Single turn (1) is too tight — live runs showed
@@ -157,6 +164,17 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
         // the SDK validated but our zod disagrees — a real error, propagated
         // immediately, never retried.
         return schema.parse(structuredOutput);
+      }
+
+      // Diagnosed live: hitting the account's usage limit does NOT surface as a
+      // clean rate-limit error — it returns subtype "success" with no
+      // structured_output, indistinguishable from a finalize flake. Immediate
+      // retries then burn all attempts against a ceiling that persists for
+      // seconds. Exponential backoff (1s,2s,4s,8s) lets a transient limit/overload
+      // clear before the next attempt instead of hammering it.
+      if (attempt < MAX_ATTEMPTS) {
+        const backoffMs = backoffBaseMs() * 2 ** (attempt - 1);
+        await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
 
