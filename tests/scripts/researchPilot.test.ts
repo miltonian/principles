@@ -118,6 +118,91 @@ describe("research-pilot fetch", () => {
     expect([...fakeFs.files.keys()].some((f) => f.startsWith(".bench-cache/"))).toBe(false);
     expect(fakeFs.files.has("benchmarks/research-pilot/manifest.json")).toBe(false);
   });
+
+  describe("held-out fetch (--held-out, --seed)", () => {
+    const twelve = Array.from({ length: 12 }, (_, i) => ({
+      sample_id: `s${String(i + 1).padStart(2, "0")}`,
+      prompt: `Prompt ${i + 1}`,
+      rubrics: [{ criterion: "c", weight: 1, axis: "a" }],
+    }));
+    const fetchText = async (url: string) => {
+      if (url.includes("offset=0")) return page(twelve);
+      if (url.includes("offset=100")) return page([]);
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    it("errors 2 when the in-set manifest is missing, and writes nothing", async () => {
+      const { deps, err, fakeFs } = makeDeps({ fetchText });
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(2);
+      expect(err.join("\n").toLowerCase()).toContain("in-set fetch first");
+      expect(fakeFs.files.has("benchmarks/research-pilot/manifest-heldout.json")).toBe(false);
+    });
+
+    it("excludes in-set sampleIds, writes manifest-heldout.json, and leaves manifest.json untouched", async () => {
+      const { deps, fakeFs } = makeDeps({ fetchText });
+
+      const fetchCode = await run(["fetch"], deps);
+      expect(fetchCode).toBe(0);
+      const inSetManifest = JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest.json")!);
+      const inSetIds = new Set(inSetManifest.items.map((it: { sampleId: string }) => it.sampleId));
+
+      const heldOutCode = await run(["fetch", "--held-out"], deps);
+      expect(heldOutCode).toBe(0);
+
+      const heldOutManifest = JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest-heldout.json")!);
+      expect(heldOutManifest.count).toBe(2); // 12 fetched - 10 in-set = 2 remain
+      for (const item of heldOutManifest.items) {
+        expect(inSetIds.has(item.sampleId)).toBe(false);
+      }
+      expect(JSON.parse(fakeFs.files.get("benchmarks/research-pilot/manifest.json")!)).toEqual(inSetManifest);
+    });
+
+    it("--seed changes which tasks are selected", async () => {
+      const { deps: deps1, fakeFs: fakeFs1 } = makeDeps({ fetchText });
+      await run(["fetch"], deps1);
+      const m1 = JSON.parse(fakeFs1.files.get("benchmarks/research-pilot/manifest.json")!);
+
+      const { deps: deps2, fakeFs: fakeFs2 } = makeDeps({ fetchText });
+      await run(["fetch", "--seed", "7"], deps2);
+      const m2 = JSON.parse(fakeFs2.files.get("benchmarks/research-pilot/manifest.json")!);
+
+      expect(m2.seed).toBe(7);
+      expect(m1.items.map((i: { sampleId: string }) => i.sampleId)).not.toEqual(
+        m2.items.map((i: { sampleId: string }) => i.sampleId)
+      );
+    });
+
+    it("a completed in-set run does not block the held-out stale-response guard", async () => {
+      const { deps, fakeFs } = makeDeps({ fetchText });
+      await run(["fetch"], deps);
+      fakeFs.files.set("benchmarks/research-pilot/responses/bare/s01.md", "done");
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(0);
+    });
+
+    it("a stale heldout response file blocks a held-out re-fetch", async () => {
+      const { deps, err, fakeFs } = makeDeps({ fetchText });
+      await run(["fetch"], deps);
+      fakeFs.files.set("benchmarks/research-pilot/responses/heldout-bare/s01.md", "done");
+
+      const code = await run(["fetch", "--held-out"], deps);
+
+      expect(code).toBe(2);
+      expect(err.join("\n")).toContain("heldout-bare");
+      expect(fakeFs.files.has("benchmarks/research-pilot/manifest-heldout.json")).toBe(false);
+    });
+
+    it("an unknown flag to fetch is rejected with exit 2", async () => {
+      const { deps } = makeDeps({ fetchText });
+      const code = await run(["fetch", "--bogus"], deps);
+      expect(code).toBe(2);
+    });
+  });
 });
 
 function seedManifestAndCache(fakeFs: ReturnType<typeof makeFakeFs>, items: { sampleId: string; prompt: string }[]) {

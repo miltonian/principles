@@ -59,15 +59,21 @@ export function parseRowsPages(pages: string[]): ResearchTask[] {
 
 /**
  * Sample tasks using Fisher-Yates shuffle with a seeded PRNG.
+ * If `exclude` is given, tasks whose sampleId is in the set are filtered out
+ * BEFORE sorting/shuffling, so the result is deterministic given
+ * (tasks-minus-exclude, count, seed).
  * Sorts tasks by sampleId first, then shuffles using mulberry32, then slices to count.
  */
 export function sampleTasks(
   tasks: ResearchTask[],
   count: number,
-  seed: number
+  seed: number,
+  exclude?: Set<string>
 ): ResearchTask[] {
+  const pool = exclude ? tasks.filter((t) => !exclude.has(t.sampleId)) : tasks;
+
   // Sort by sampleId
-  const sorted = [...tasks].sort((a, b) => a.sampleId.localeCompare(b.sampleId));
+  const sorted = [...pool].sort((a, b) => a.sampleId.localeCompare(b.sampleId));
 
   // Fisher-Yates shuffle with seeded PRNG
   const rng = mulberry32(seed);

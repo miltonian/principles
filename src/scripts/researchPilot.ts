@@ -29,6 +29,7 @@ const CACHE_DIR = ".bench-cache/researchrubrics";
 const ONTOLOGY_CACHE_DIR = ".bench-cache/ontologies";
 const BENCH_DIR = "benchmarks/research-pilot";
 const MANIFEST_PATH = `${BENCH_DIR}/manifest.json`;
+const MANIFEST_HELDOUT_PATH = `${BENCH_DIR}/manifest-heldout.json`;
 const RESPONSES_DIR = `${BENCH_DIR}/responses`;
 const ARMS = ["bare", "principles"] as const;
 type Arm = (typeof ARMS)[number];
@@ -37,10 +38,9 @@ const runLogPath = (arm: Arm) => `${BENCH_DIR}/run-log-${arm}.jsonl`;
 const pageUrl = (offset: number) =>
   `https://datasets-server.huggingface.co/rows?dataset=ScaleAI%2Fresearchrubrics&config=default&split=train&offset=${offset}&length=100`;
 
-function listResponseFiles(deps: PilotDeps): string[] {
+function listResponseFiles(deps: PilotDeps, dirs: string[]): string[] {
   const found: string[] = [];
-  for (const arm of ARMS) {
-    const dir = `${RESPONSES_DIR}/${arm}`;
+  for (const dir of dirs) {
     if (deps.exists(dir)) {
       for (const f of deps.listDir(dir)) found.push(`${dir}/${f}`);
     }
@@ -48,12 +48,51 @@ function listResponseFiles(deps: PilotDeps): string[] {
   return found;
 }
 
-async function cmdFetch(deps: PilotDeps): Promise<number> {
+const inSetResponseDirs = () => ARMS.map((arm) => `${RESPONSES_DIR}/${arm}`);
+const heldOutResponseDirs = () => ARMS.map((arm) => `${RESPONSES_DIR}/heldout-${arm}`);
+
+function parseFetchFlags(rest: string[]): { seed: number; heldOut: boolean } | { badFlag: string } {
+  let seed = SEED;
+  let heldOut = false;
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === "--seed") {
+      const raw = rest[++i];
+      const n = Number(raw);
+      if (!Number.isFinite(n) || !Number.isInteger(n)) return { badFlag: `--seed ${raw ?? ""}` };
+      seed = n;
+    } else if (a === "--held-out") {
+      heldOut = true;
+    } else return { badFlag: a };
+  }
+  return { seed, heldOut };
+}
+
+async function cmdFetch(deps: PilotDeps, rest: string[]): Promise<number> {
   try {
-    const stale = listResponseFiles(deps);
+    const parsed = parseFetchFlags(rest);
+    if ("badFlag" in parsed) {
+      deps.error(`Unknown or invalid flag: ${parsed.badFlag}. Usage: research-pilot fetch [--seed N] [--held-out]`);
+      return 2;
+    }
+    const { seed, heldOut } = parsed;
+
+    let exclude: Set<string> | undefined;
+    const manifestPath = heldOut ? MANIFEST_HELDOUT_PATH : MANIFEST_PATH;
+
+    if (heldOut) {
+      if (!deps.exists(MANIFEST_PATH)) {
+        deps.error(`No manifest at ${MANIFEST_PATH} — run the in-set fetch first.`);
+        return 2;
+      }
+      const inSetManifest = JSON.parse(deps.readFile(MANIFEST_PATH)) as PilotManifest;
+      exclude = new Set(inSetManifest.items.map((it) => it.sampleId));
+    }
+
+    const stale = listResponseFiles(deps, heldOut ? heldOutResponseDirs() : inSetResponseDirs());
     if (stale.length > 0) {
       deps.error(
-        `Refusing to overwrite ${MANIFEST_PATH}: response file(s) already exist (stale-mixing guard):\n` +
+        `Refusing to overwrite ${manifestPath}: response file(s) already exist (stale-mixing guard):\n` +
           stale.map((f) => `  - ${f}`).join("\n")
       );
       return 2;
@@ -65,13 +104,13 @@ async function cmdFetch(deps: PilotDeps): Promise<number> {
       const url = pageUrl(offset);
       const text = await deps.fetchText(url);
 
-      let parsed: { rows?: unknown[] } | undefined;
+      let parsedPage: { rows?: unknown[] } | undefined;
       try {
-        parsed = JSON.parse(text) as { rows?: unknown[] };
+        parsedPage = JSON.parse(text) as { rows?: unknown[] };
       } catch {
-        parsed = undefined;
+        parsedPage = undefined;
       }
-      if (!parsed || !Array.isArray(parsed.rows)) {
+      if (!parsedPage || !Array.isArray(parsedPage.rows)) {
         deps.error(`Fetched page at offset ${offset} is not valid JSON with a "rows" array (url: ${url}); nothing cached.`);
         return 2;
       }
@@ -80,18 +119,18 @@ async function cmdFetch(deps: PilotDeps): Promise<number> {
       deps.writeFile(`${CACHE_DIR}/page-${offset}.json`, text);
       pages.push(text);
 
-      if (parsed.rows.length === 0) break;
+      if (parsedPage.rows.length === 0) break;
       offset += 100;
     }
 
     const tasks = parseRowsPages(pages);
-    const sampled = sampleTasks(tasks, SAMPLE_COUNT, SEED);
-    const manifest = buildPilotManifest(sampled, SEED);
+    const sampled = sampleTasks(tasks, SAMPLE_COUNT, seed, exclude);
+    const manifest = buildPilotManifest(sampled, seed);
 
     deps.mkdirp(BENCH_DIR);
-    deps.writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+    deps.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 
-    deps.log(`Wrote ${MANIFEST_PATH} with ${manifest.count} task(s):`);
+    deps.log(`Wrote ${manifestPath} with ${manifest.count} task(s):`);
     for (const item of manifest.items) {
       deps.log(`  - ${item.sampleId} (${item.rubricCount} rubrics)`);
     }
@@ -313,7 +352,7 @@ export async function run(argv: string[], deps: PilotDeps): Promise<number> {
   const [cmd, ...rest] = argv;
   switch (cmd) {
     case "fetch":
-      return cmdFetch(deps);
+      return cmdFetch(deps, rest);
     case "run":
       return cmdRun(deps, rest);
     case "status":

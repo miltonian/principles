@@ -25,6 +25,31 @@ describe("sampleTasks", () => {
   });
 });
 
+describe("sampleTasks with exclude", () => {
+  const mk = (id: string) => ({ sampleId: id, prompt: `P-${id}`, rubricCount: 1 });
+  const pool = ["e", "d", "c", "b", "a"].map(mk);
+
+  it("filters excluded ids before sampling, preserving determinism and count", () => {
+    const exclude = new Set(["a", "b"]);
+    const first = sampleTasks(pool, 3, 42, exclude).map((t) => t.sampleId);
+    const second = sampleTasks(pool, 3, 42, exclude).map((t) => t.sampleId);
+    expect(first).toEqual(second);
+    expect(first).toHaveLength(3);
+    expect(first).not.toContain("a");
+    expect(first).not.toContain("b");
+  });
+
+  it("count is still capped, now at the remaining pool size after exclusion", () => {
+    const exclude = new Set(["a", "b", "c"]);
+    const result = sampleTasks(pool, 10, 42, exclude);
+    expect(result).toHaveLength(2);
+  });
+
+  it("with no exclude, behaves exactly as the 3-arg call", () => {
+    expect(sampleTasks(pool, 3, 42, undefined)).toEqual(sampleTasks(pool, 3, 42));
+  });
+});
+
 describe("buildPilotManifest", () => {
   it("records dataset, seed, count and per-item rubric counts", () => {
     const m = buildPilotManifest([{ sampleId: "x", prompt: "p", rubricCount: 7 }], 9);
