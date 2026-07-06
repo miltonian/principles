@@ -622,6 +622,8 @@ describe("worker pool — skip-and-continue on item failure (live: SDK flake bur
     expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/c.md")).toBe(true);
     expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/b.md")).toBe(false);
     expect(err.join(" ")).toContain('"b"');
+    // mid-pass visibility: the failure line appears immediately, tagged with the arm dir
+    expect(err.some((l) => l.includes("FAILED mid-pass") && l.includes("b"))).toBe(true);
   });
 });
 

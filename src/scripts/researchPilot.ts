@@ -220,7 +220,8 @@ function parseRunFlags(
 async function runWorkerPool<T extends { sampleId: string }>(
   items: T[],
   concurrency: number,
-  worker: (item: T) => Promise<void>
+  worker: (item: T) => Promise<void>,
+  onFailure?: (sampleId: string, error: unknown) => void
 ): Promise<{ failures: { sampleId: string; error: unknown }[] }> {
   let nextIndex = 0;
   const failures: { sampleId: string; error: unknown }[] = [];
@@ -234,6 +235,9 @@ async function runWorkerPool<T extends { sampleId: string }>(
         await worker(item);
       } catch (e) {
         failures.push({ sampleId: item.sampleId, error: e });
+        // Surface immediately: without this, a skipped item is invisible until
+        // the whole pass ends (live: a failed task looked like silent churn).
+        onFailure?.(item.sampleId, e);
       }
     }
   }
@@ -337,7 +341,9 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
       );
     };
 
-    const { failures } = await runWorkerPool(pending, concurrency, runOne);
+    const { failures } = await runWorkerPool(pending, concurrency, runOne, (sampleId, e) =>
+      deps.error(`[${armDir}] item ${sampleId} FAILED mid-pass (${e instanceof Error ? e.message : String(e)}); skipping ahead — it stays resumable.`)
+    );
     if (failures.length > 0) {
       for (const f of failures) {
         const message = f.error instanceof Error ? f.error.message : String(f.error);
