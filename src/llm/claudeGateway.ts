@@ -101,8 +101,16 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       let haveOutput = false;
 
       let timer: ReturnType<typeof setTimeout> | undefined;
+      // Hoisted so `finally` can .return() it. CRITICAL: a timed-out or
+      // errored attempt must tell the async iterator to clean up, which
+      // terminates the SDK's underlying `claude` subprocess. Without this,
+      // timed-out calls ORPHAN their subprocess — it keeps running for
+      // minutes, consuming API capacity, and retries pile more orphans on
+      // top: a self-inflicted throughput death spiral (diagnosed live —
+      // 9-minute zombie subprocesses under concurrency 1).
+      let iterator: AsyncIterator<any> | undefined;
       try {
-        const iterator = runQuery()[Symbol.asyncIterator]();
+        iterator = runQuery()[Symbol.asyncIterator]();
         const ms = attemptTimeoutMs();
         const timeout = new Promise<never>((_, reject) => {
           timer = setTimeout(
@@ -122,6 +130,13 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
           }
           if (message.subtype === "success") {
             // Flake: success but the finalize step dropped structured_output.
+            if (process.env.PRINCIPLES_DIAG === "1") {
+              const { structured_output, ...rest } = message;
+              // eslint-disable-next-line no-console
+              console.error(
+                `[DIAG empty-success ${schemaName} attempt ${attempt}] ${JSON.stringify(rest).slice(0, 1500)}`
+              );
+            }
             lastError = new Error(
               `Claude Agent SDK returned success but no structured_output for schema "${schemaName}" — outputFormat was likely ignored`
             );
@@ -157,6 +172,17 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
         lastError = err instanceof Error ? err : new Error(String(err));
       } finally {
         if (timer) clearTimeout(timer);
+        // Abort the iterator on any non-success exit: this sends the async
+        // iterator's return signal, which the SDK uses to terminate its
+        // underlying `claude` subprocess so it can't orphan. FIRE-AND-FORGET:
+        // do NOT await — .return() on a generator wedged at a never-settling
+        // await can itself hang, which would re-introduce the stall. Calling
+        // it is enough to dispatch the kill; we don't need teardown to finish.
+        if (!haveOutput && iterator?.return) {
+          void Promise.resolve(iterator.return(undefined)).catch(() => {
+            /* best-effort teardown */
+          });
+        }
       }
 
       if (haveOutput) {

@@ -324,4 +324,24 @@ describe("webTools option", () => {
     delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
   });
 
+
+  it("aborts the iterator (kills the SDK subprocess) when an attempt times out — no orphans", async () => {
+    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "40";
+    process.env.PRINCIPLES_BACKOFF_BASE_MS = "0";
+    let returnCalled = 0;
+    const wedgingQuery = ((_args: any) => {
+      let done = false;
+      return {
+        [Symbol.asyncIterator]() { return this; },
+        async next() { if (done) return { done: true, value: undefined }; await new Promise((r) => setTimeout(r, 5000)); return { done: false, value: { type: "assistant" } }; },
+        async return() { returnCalled++; done = true; return { done: true, value: undefined }; },
+      };
+    }) as any;
+    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgingQuery });
+    await expect(llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })).rejects.toThrow();
+    expect(returnCalled).toBe(5); // .return() called on every timed-out attempt
+    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
+    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
+  });
+
 });
