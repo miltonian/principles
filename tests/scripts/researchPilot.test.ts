@@ -659,6 +659,20 @@ describe("run --exec-model (generation on default llm, execution on the aliased 
     expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/a.md")).toBe(false);
   });
 
+  it("resolves the sonnet alias", async () => {
+    const { deps } = makeDeps({ confirmYes: true });
+    const { fakeFs } = { fakeFs: undefined as never };
+    void fakeFs;
+    let model = "";
+    deps.makeLlm = (m: string) => { model = m; return (async () => ({})) as unknown as Llm; };
+    deps.runners = {
+      generate: async () => ({ ontology: {} }),
+      run: async () => ({ answer: "# R", unverified: [], discoveries: [] }),
+    } as never;
+    await run(["run", "--arm", "principles", "--exec-model", "sonnet"], deps);
+    expect(model).toBe("claude-sonnet-5");
+  });
+
   it("rejects --exec-model with --arm bare", async () => {
     const { deps, err } = makeDeps({ confirmYes: true });
     const code = await run(["run", "--arm", "bare", "--exec-model", "haiku"], deps);

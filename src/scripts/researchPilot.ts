@@ -176,6 +176,7 @@ const MAX_CONCURRENCY = 4;
 // Short aliases for --exec-model; anything not listed passes through as a raw model id.
 const EXEC_MODEL_ALIASES: Record<string, string> = {
   haiku: "claude-haiku-4-5-20251001",
+  sonnet: "claude-sonnet-5",
 };
 
 function parseRunFlags(
