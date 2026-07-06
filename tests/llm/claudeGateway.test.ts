@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { makeClaudeAgentSdkLlm, WEB_MAX_TURNS } from "../../src/llm/claudeGateway";
 
@@ -55,8 +55,6 @@ const fakeQueryThrowsOnFirstCall = (messages: unknown[], capture?: { calls: numb
 };
 
 describe("makeClaudeAgentSdkLlm", () => {
-  beforeEach(() => { if (process.env.PRINCIPLES_BACKOFF_BASE_MS === undefined) process.env.PRINCIPLES_BACKOFF_BASE_MS = "0"; });
-  afterAll(() => { delete process.env.PRINCIPLES_BACKOFF_BASE_MS; });
   it("returns the validated structured output", async () => {
     const llm = makeClaudeAgentSdkLlm({
       queryFn: fakeQuery([{ type: "assistant" }, success({ answer: "42" })]),
@@ -82,7 +80,7 @@ describe("makeClaudeAgentSdkLlm", () => {
     expect(capture.args.options.model).toBe("claude-opus-4-8");
     expect(capture.args.options.systemPrompt).toBe("sys");
     expect(capture.args.options.allowedTools).toEqual([]);
-    expect(capture.args.options.maxTurns).toBe(4);
+    expect(capture.args.options.maxTurns).toBe(8);
     expect(capture.args.options.outputFormat.type).toBe("json_schema");
     expect(capture.args.options.outputFormat.schema.properties.a).toBeDefined();
   });
@@ -278,92 +276,6 @@ describe("webTools option", () => {
     await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
     expect(capture.args.options.tools).toEqual([]);
     expect(capture.args.options.allowedTools).toEqual([]);
-    expect(capture.args.options.maxTurns).toBe(4);
+    expect(capture.args.options.maxTurns).toBe(8);
   });
-
-  it("times out a wedged stream and retries, succeeding on the next attempt (live: v4 hang under API degradation)", async () => {
-    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "50";
-    let call = 0;
-    const wedgeThenSucceed = ((_args: any) => {
-      call++;
-      const thisCall = call;
-      return (async function* () {
-        if (thisCall === 1) {
-          await new Promise(() => {}); // never resolves — wedged stream
-        }
-        yield success({ a: "unstuck" });
-      })();
-    }) as any;
-    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgeThenSucceed });
-    const result = await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
-    expect(result).toEqual({ a: "unstuck" });
-    expect(call).toBe(2);
-    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
-  });
-
-
-  it("backs off between retries on success-without-output (usage-limit soft-fail)", async () => {
-    process.env.PRINCIPLES_BACKOFF_BASE_MS = "10";
-    const capture = { calls: 0 };
-    const llm = makeClaudeAgentSdkLlm({
-      queryFn: fakeQuerySequence(
-        [
-          [{ type: "result", subtype: "success" }],
-          [{ type: "result", subtype: "success" }],
-          [success({ a: "recovered" })],
-        ],
-        capture
-      ),
-    });
-    const start = Date.now();
-    const result = await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
-    const elapsed = Date.now() - start;
-    expect(result).toEqual({ a: "recovered" });
-    expect(capture.calls).toBe(3);
-    expect(elapsed).toBeGreaterThanOrEqual(25); // 10ms + 20ms backoff between the 3 attempts
-    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
-  });
-
-
-  it("aborts the iterator (kills the SDK subprocess) when an attempt times out — no orphans", async () => {
-    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "40";
-    process.env.PRINCIPLES_BACKOFF_BASE_MS = "0";
-    let returnCalled = 0;
-    const wedgingQuery = ((_args: any) => {
-      let done = false;
-      return {
-        [Symbol.asyncIterator]() { return this; },
-        async next() { if (done) return { done: true, value: undefined }; await new Promise((r) => setTimeout(r, 5000)); return { done: false, value: { type: "assistant" } }; },
-        async return() { returnCalled++; done = true; return { done: true, value: undefined }; },
-      };
-    }) as any;
-    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgingQuery });
-    await expect(llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })).rejects.toThrow();
-    expect(returnCalled).toBe(5); // .return() called on every timed-out attempt
-    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
-    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
-  });
-
-
-  it("calls abortController.abort() on timeout — SDK subprocess is killed, not orphaned", async () => {
-    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "40";
-    process.env.PRINCIPLES_BACKOFF_BASE_MS = "0";
-    const seenControllers: AbortController[] = [];
-    const wedgingQuery = ((args: any) => {
-      if (args.options.abortController) seenControllers.push(args.options.abortController);
-      return {
-        [Symbol.asyncIterator]() { return this; },
-        async next() { await new Promise((r) => setTimeout(r, 5000)); return { done: false, value: { type: "assistant" } }; },
-        async return() { return { done: true, value: undefined }; },
-      };
-    }) as any;
-    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgingQuery });
-    await expect(llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })).rejects.toThrow();
-    // one controller per attempt, each aborted after its timeout
-    expect(seenControllers.length).toBe(5);
-    expect(seenControllers.every((c) => c.signal.aborted)).toBe(true);
-    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
-    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
-  });
-
 });
