@@ -60,8 +60,9 @@ export function parseRowsPages(pages: string[]): ResearchTask[] {
 /**
  * Sample tasks using Fisher-Yates shuffle with a seeded PRNG.
  * If `exclude` is given, tasks whose sampleId is in the set are filtered out
- * BEFORE sorting/shuffling, so the result is deterministic given
- * (tasks-minus-exclude, count, seed).
+ * BEFORE sorting/shuffling (deterministic given tasks-minus-exclude, count,
+ * seed) — this is how the held-out manifest guarantees disjointness from the
+ * in-set manifest.
  * Sorts tasks by sampleId first, then shuffles using mulberry32, then slices to count.
  */
 export function sampleTasks(
