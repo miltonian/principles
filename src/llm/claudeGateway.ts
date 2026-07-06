@@ -33,7 +33,9 @@ const MAX_TURNS = 8;
 
 // Web tool loops consume turns fetching/searching before finalizing structured
 // output, so they need far more headroom than the tool-less MAX_TURNS above.
-export const WEB_MAX_TURNS = 12;
+// 12 sufficed for Opus; Sonnet 5 chunks output across more turns on top of its
+// tool loop (live: error_max_turns(12) on a web agent's report-sized output).
+export const WEB_MAX_TURNS = 24;
 
 /** Thrown for outcomes that must propagate immediately, never retried. */
 class NonRetryableSdkError extends Error {}
