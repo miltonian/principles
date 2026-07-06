@@ -23,6 +23,13 @@ const DEFAULT_SYSTEM =
 // consecutive misses on one call observed twice, killing multi-hour runs).
 const MAX_ATTEMPTS = 5;
 
+// Hard per-attempt wall-clock. Live evidence (v4 large-payload runs): under API
+// degradation the SDK stream can WEDGE — no message, no error, no end — stalling
+// a run forever. The CLAUDE_STREAM_IDLE_TIMEOUT_MS env watchdog did not abort it.
+// This timer is the backstop: a wedged attempt rejects and the retry loop resamples.
+// Read per-call (not at module load) so tests and ops can tune it via env.
+const attemptTimeoutMs = (): number => Number(process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS) || 300_000;
+
 // Maximum turns per query. Tools are disabled (tools: [], allowedTools: []),
 // so extra turns only continue the same text/structured-output generation
 // without agent-loop risk. Single turn (1) is too tight — live runs showed
@@ -86,8 +93,20 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       let structuredOutput: unknown;
       let haveOutput = false;
 
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        for await (const message of runQuery()) {
+        const iterator = runQuery()[Symbol.asyncIterator]();
+        const ms = attemptTimeoutMs();
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`attempt timed out after ${ms}ms (wedged stream) for schema "${schemaName}"`)),
+            ms
+          );
+        });
+        for (;;) {
+          const next = await Promise.race([iterator.next(), timeout]);
+          if (next.done) break;
+          const message = next.value;
           if (message.type !== "result") continue;
           if (message.subtype === "success" && message.structured_output != null) {
             structuredOutput = message.structured_output;
@@ -127,8 +146,10 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       } catch (err) {
         if (err instanceof NonRetryableSdkError) throw err;
         // Flake: queryFn/stream threw (observed: "Claude Code process exited
-        // with code 1").
+        // with code 1"), or the attempt timed out on a wedged stream.
         lastError = err instanceof Error ? err : new Error(String(err));
+      } finally {
+        if (timer) clearTimeout(timer);
       }
 
       if (haveOutput) {

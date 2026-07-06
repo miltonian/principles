@@ -278,4 +278,25 @@ describe("webTools option", () => {
     expect(capture.args.options.allowedTools).toEqual([]);
     expect(capture.args.options.maxTurns).toBe(4);
   });
+
+  it("times out a wedged stream and retries, succeeding on the next attempt (live: v4 hang under API degradation)", async () => {
+    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "50";
+    let call = 0;
+    const wedgeThenSucceed = ((_args: any) => {
+      call++;
+      const thisCall = call;
+      return (async function* () {
+        if (thisCall === 1) {
+          await new Promise(() => {}); // never resolves — wedged stream
+        }
+        yield success({ a: "unstuck" });
+      })();
+    }) as any;
+    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgeThenSucceed });
+    const result = await llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" });
+    expect(result).toEqual({ a: "unstuck" });
+    expect(call).toBe(2);
+    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
+  });
+
 });
