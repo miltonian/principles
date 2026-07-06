@@ -8,6 +8,8 @@ import { parseRowsPages, sampleTasks, buildPilotManifest, ResearchTask, PilotMan
 import { runBareArm, runPrinciplesArm, realRunners, PrinciplesRunners } from "../bench/researchArms";
 
 export interface PilotDeps {
+  /** Optional factory for per-model gateways (--exec-model); production defaults to makeClaudeAgentSdkLlm. */
+  makeLlm?: (model: string) => Llm;
   llm: Llm;
   fetchText: (url: string) => Promise<string>;
   readFile: (p: string) => string;
@@ -34,7 +36,7 @@ const RESPONSES_DIR = `${BENCH_DIR}/responses`;
 const ARMS = ["bare", "principles"] as const;
 type Arm = (typeof ARMS)[number];
 
-const runLogPath = (arm: Arm) => `${BENCH_DIR}/run-log-${arm}.jsonl`;
+const runLogPath = (armDir: string) => `${BENCH_DIR}/run-log-${armDir}.jsonl`;
 const pageUrl = (offset: number) =>
   `https://datasets-server.huggingface.co/rows?dataset=ScaleAI%2Fresearchrubrics&config=default&split=train&offset=${offset}&length=100`;
 
@@ -171,10 +173,18 @@ function withOntologyPersistence(base: PrinciplesRunners, deps: PilotDeps, sampl
 
 const MAX_CONCURRENCY = 4;
 
-function parseRunFlags(rest: string[]): { arm: Arm; limit?: number; concurrency?: number } | { badFlag: string } {
+// Short aliases for --exec-model; anything not listed passes through as a raw model id.
+const EXEC_MODEL_ALIASES: Record<string, string> = {
+  haiku: "claude-haiku-4-5-20251001",
+};
+
+function parseRunFlags(
+  rest: string[]
+): { arm: Arm; limit?: number; concurrency?: number; execModel?: string } | { badFlag: string } {
   let arm: string | undefined;
   let limit: number | undefined;
   let concurrency: number | undefined;
+  let execModel: string | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--arm") arm = rest[++i];
@@ -188,10 +198,15 @@ function parseRunFlags(rest: string[]): { arm: Arm; limit?: number; concurrency?
       const n = Number(raw);
       if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return { badFlag: `--concurrency ${raw ?? ""}` };
       concurrency = n;
+    } else if (a === "--exec-model") {
+      const raw = rest[++i];
+      if (!raw || raw.startsWith("--")) return { badFlag: `--exec-model ${raw ?? ""}` };
+      execModel = raw;
     } else return { badFlag: a };
   }
   if (arm !== "bare" && arm !== "principles") return { badFlag: `--arm ${arm ?? "(missing, expected bare|principles)"}` };
-  return { arm, limit, concurrency };
+  if (execModel !== undefined && arm !== "principles") return { badFlag: `--exec-model (only valid with --arm principles)` };
+  return { arm, limit, concurrency, execModel };
 }
 
 /**
@@ -238,7 +253,16 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
       );
       return 2;
     }
-    const { arm, limit } = parsed;
+    const { arm, limit, execModel } = parsed;
+    // Generation always uses the default (Opus) gateway; --exec-model swaps
+    // only the execution phase and isolates all artifacts under a suffixed
+    // arm name so bare/principles responses are never mixed or skipped-over.
+    const armDir = execModel ? `${arm}-${execModel}` : arm;
+    const execLlm = execModel
+      ? (deps.makeLlm ?? ((m: string) => makeClaudeAgentSdkLlm({ model: m })))(
+          EXEC_MODEL_ALIASES[execModel] ?? execModel
+        )
+      : undefined;
     let concurrency = parsed.concurrency ?? 1;
     if (concurrency > MAX_CONCURRENCY) {
       deps.log(`Requested --concurrency ${concurrency} exceeds the max of ${MAX_CONCURRENCY}; clamping to ${MAX_CONCURRENCY}.`);
@@ -272,7 +296,7 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
 
     if (limit !== undefined) items = items.slice(0, limit);
 
-    const responsesDir = `${RESPONSES_DIR}/${arm}`;
+    const responsesDir = `${RESPONSES_DIR}/${armDir}`;
     const pending = items.filter((t) => !deps.exists(`${responsesDir}/${t.sampleId}.md`));
 
     if (pending.length === 0) {
@@ -297,12 +321,13 @@ async function cmdRun(deps: PilotDeps, rest: string[]): Promise<number> {
           : await runPrinciplesArm(
               deps.llm,
               task,
-              withOntologyPersistence(deps.runners ?? realRunners(), deps, task.sampleId)
+              withOntologyPersistence(deps.runners ?? realRunners(), deps, task.sampleId),
+              execLlm
             );
 
       deps.writeFile(`${responsesDir}/${task.sampleId}.md`, result.markdown);
       deps.appendFile(
-        runLogPath(arm),
+        runLogPath(armDir),
         `${JSON.stringify({ sampleId: task.sampleId, wordCount: result.wordCount, unverified: result.unverified, at: deps.now() })}\n`
       );
       deps.log(

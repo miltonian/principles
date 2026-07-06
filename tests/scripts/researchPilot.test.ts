@@ -624,3 +624,43 @@ describe("worker pool — skip-and-continue on item failure (live: SDK flake bur
     expect(err.join(" ")).toContain('"b"');
   });
 });
+
+describe("run --exec-model (generation on default llm, execution on the aliased model)", () => {
+  it("resolves the haiku alias, runs generate on deps.llm and run on the exec llm, and isolates artifacts", async () => {
+    const { deps, fakeFs } = makeDeps({ confirmYes: true });
+    seedManifestAndCache(fakeFs, [{ sampleId: "a", prompt: "Prompt A" }]);
+    const seen: { model?: string; genLlm?: unknown; runLlm?: unknown } = {};
+    const execLlm = (async () => ({})) as unknown as Llm;
+    deps.makeLlm = (model: string) => {
+      seen.model = model;
+      return execLlm;
+    };
+    deps.runners = {
+      generate: async (llm: unknown) => {
+        seen.genLlm = llm;
+        return { ontology: { o: 1 } };
+      },
+      run: async (llm: unknown) => {
+        seen.runLlm = llm;
+        return { answer: "# R", unverified: [], discoveries: [] };
+      },
+    } as never;
+
+    const code = await run(["run", "--arm", "principles", "--exec-model", "haiku"], deps);
+
+    expect(code).toBe(0);
+    expect(seen.model).toBe("claude-haiku-4-5-20251001");
+    expect(seen.genLlm).toBe(deps.llm);
+    expect(seen.runLlm).toBe(execLlm);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles-haiku/a.md")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/run-log-principles-haiku.jsonl")).toBe(true);
+    expect(fakeFs.files.has("benchmarks/research-pilot/responses/principles/a.md")).toBe(false);
+  });
+
+  it("rejects --exec-model with --arm bare", async () => {
+    const { deps, err } = makeDeps({ confirmYes: true });
+    const code = await run(["run", "--arm", "bare", "--exec-model", "haiku"], deps);
+    expect(code).toBe(2);
+    expect(err.join(" ")).toContain("--exec-model");
+  });
+});
