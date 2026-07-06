@@ -344,4 +344,26 @@ describe("webTools option", () => {
     delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
   });
 
+
+  it("calls abortController.abort() on timeout — SDK subprocess is killed, not orphaned", async () => {
+    process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS = "40";
+    process.env.PRINCIPLES_BACKOFF_BASE_MS = "0";
+    const seenControllers: AbortController[] = [];
+    const wedgingQuery = ((args: any) => {
+      if (args.options.abortController) seenControllers.push(args.options.abortController);
+      return {
+        [Symbol.asyncIterator]() { return this; },
+        async next() { await new Promise((r) => setTimeout(r, 5000)); return { done: false, value: { type: "assistant" } }; },
+        async return() { return { done: true, value: undefined }; },
+      };
+    }) as any;
+    const llm = makeClaudeAgentSdkLlm({ queryFn: wedgingQuery });
+    await expect(llm({ prompt: "q", schema: z.object({ a: z.string() }), schemaName: "t" })).rejects.toThrow();
+    // one controller per attempt, each aborted after its timeout
+    expect(seenControllers.length).toBe(5);
+    expect(seenControllers.every((c) => c.signal.aborted)).toBe(true);
+    delete process.env.PRINCIPLES_ATTEMPT_TIMEOUT_MS;
+    delete process.env.PRINCIPLES_BACKOFF_BASE_MS;
+  });
+
 });

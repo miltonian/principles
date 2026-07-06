@@ -76,12 +76,18 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
     const webToolsEnabled = webTools === true;
     const toolset = webToolsEnabled ? ["WebSearch", "WebFetch"] : [];
 
-    const runQuery = (): AsyncIterable<any> =>
+    // Per-attempt AbortController is THE way to terminate a query's underlying
+    // `claude` subprocess (SDK Options.abortController: "when aborted, the query
+    // will stop and clean up resources"). iterator.return() does NOT kill it —
+    // orphaned subprocesses accumulated into a throughput death spiral until we
+    // switched to this. See the retry loop's abort call.
+    const runQuery = (abortController: AbortController): AsyncIterable<any> =>
       queryFn({
         prompt,
         options: {
           model,
           systemPrompt: system ?? DEFAULT_SYSTEM,
+          abortController,
           // Belt-and-suspenders tool disablement: `allowedTools: []` only
           // means "auto-allow nothing" (per the installed SDK's own docs,
           // it does not restrict which tools are *available*). `tools: []`
@@ -109,8 +115,9 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
       // top: a self-inflicted throughput death spiral (diagnosed live —
       // 9-minute zombie subprocesses under concurrency 1).
       let iterator: AsyncIterator<any> | undefined;
+      const abortController = new AbortController();
       try {
-        iterator = runQuery()[Symbol.asyncIterator]();
+        iterator = runQuery(abortController)[Symbol.asyncIterator]();
         const ms = attemptTimeoutMs();
         const timeout = new Promise<never>((_, reject) => {
           timer = setTimeout(
@@ -172,16 +179,17 @@ export function makeClaudeAgentSdkLlm(opts: ClaudeGatewayOptions = {}): Llm {
         lastError = err instanceof Error ? err : new Error(String(err));
       } finally {
         if (timer) clearTimeout(timer);
-        // Abort the iterator on any non-success exit: this sends the async
-        // iterator's return signal, which the SDK uses to terminate its
-        // underlying `claude` subprocess so it can't orphan. FIRE-AND-FORGET:
-        // do NOT await — .return() on a generator wedged at a never-settling
-        // await can itself hang, which would re-introduce the stall. Calling
-        // it is enough to dispatch the kill; we don't need teardown to finish.
-        if (!haveOutput && iterator?.return) {
-          void Promise.resolve(iterator.return(undefined)).catch(() => {
-            /* best-effort teardown */
-          });
+        // Terminate the SDK subprocess on any non-success exit (timeout/error).
+        // abort() is the SDK's documented cancel — it stops the query and cleans
+        // up the underlying `claude` subprocess, so it can't orphan and pile up.
+        // Also best-effort .return() the iterator to release the async generator.
+        if (!haveOutput) {
+          abortController.abort();
+          if (iterator?.return) {
+            void Promise.resolve(iterator.return(undefined)).catch(() => {
+              /* best-effort teardown */
+            });
+          }
         }
       }
 
